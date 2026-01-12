@@ -25,6 +25,12 @@ const Navbar = () => {
               Add Device
             </Button>
           </Link>
+          
+          <Link to="/portlist" style={{color:"#fff"}}>
+            <Button color="inherit" startIcon={<AddCircleOutlineIcon />}>
+              Port List
+            </Button>
+          </Link>
 
           <Link to="/deviceList" style={{color:"#fff"}}>
             <Button color="inherit" startIcon={<StorageIcon />}>
