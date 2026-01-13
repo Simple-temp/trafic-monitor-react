@@ -122,7 +122,7 @@ export default function LiveGraph() {
   /* ================= ACTIONS ================= */
   const save = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
-    setShow(false);
+    setShow(false);  // Close popup after adding
   };
 
   const remove = (key) => {
@@ -145,54 +145,119 @@ export default function LiveGraph() {
       {show && (
         <div
           style={{
-            background: "#fff",
-            border: "1px solid #ccc",
-            padding: 7,
-            maxHeight: 220,
-            overflowY: "auto",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
           }}
+          onClick={() => setShow(false)}  // Close on backdrop click
         >
-          {interfaces
-            .filter((i) =>
-              `${i.device_name} ${i.ifName} ${i.ifDescr}`
-                .toLowerCase()
-                .includes(search.toLowerCase())
-            )
-            .map((i) => {
-              const key = `${i.device_id}_${i.ifIndex}`;
-              return (
-                <label
-                  key={key}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 6,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(key)}
-                    onChange={(e) =>
-                      e.target.checked
-                        ? setSelected([...selected, key])
-                        : setSelected(selected.filter((x) => x !== key))
-                    }
-                  />
-                  <span style={{ flex: 1, marginLeft: 6 }}>
-                    <b>{i.device_name}</b> | {i.ifDescr}
-                  </span>
-                  <span
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #ccc",
+              padding: "20px",
+              width: "1200px",
+              height: "600px",
+              overflowY: "auto",
+              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+              position: "relative",
+            }}
+            onClick={(e) => e.stopPropagation()}  // Prevent closing on content click
+          >
+            {/* Cross icon to close */}
+            <button
+              onClick={() => setShow(false)}
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                background: "none",
+                border: "none",
+                fontSize: "18px",
+                cursor: "pointer",
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Search bar inside popup */}
+            <input
+              placeholder="Search device / interface"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+            />
+
+            {interfaces
+              .filter((i) =>
+                `${i.device_name} ${i.ifName} ${i.ifDescr}`
+                  .toLowerCase()
+                  .includes(search.toLowerCase())
+              )
+              .map((i) => {
+                const key = `${i.device_id}_${i.ifIndex}`;
+                return (
+                  <div
+                    key={key}
                     style={{
-                      fontWeight: "bold",
-                      color: i.ifOperStatus === 1 ? "green" : "red",
+                      marginBottom: "10px",
+                      padding: "10px",
+                      border: "1px solid #eee",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      transition: "background-color 0.2s",
                     }}
+                    onMouseEnter={(e) => (e.target.style.backgroundColor = "#ffffff")}
+                    onMouseLeave={(e) => (e.target.style.backgroundColor = "transparent")}
                   >
-                    {i.ifOperStatus === 1 ? "UP" : "DOWN"}
-                  </span>
-                </label>
-              );
-            })}
-          <button onClick={save}>Add Selected</button>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(key)}
+                        onChange={(e) =>
+                          e.target.checked
+                            ? setSelected([...selected, key])
+                            : setSelected(selected.filter((x) => x !== key))
+                        }
+                        style={{ marginRight: "10px" }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: "bold" }}>{i.device_name}</div>
+                        <div style={{ fontSize: "14px", color: "#666" }}>{i.ifDescr}</div>
+                        {/* <div style={{ fontSize: "12px", color: "#888" }}>Speed: {formatBps(i.ifSpeed)}</div> */}
+                        <div style={{ fontSize: "12px", color: "#888" }}>
+                          Status: <span style={{ color: i.ifOperStatus === 1 ? "green" : "red" }}>
+                            {i.ifOperStatus === 1 ? "UP" : "DOWN"}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                );
+              })}
+            <button
+              onClick={save}
+              style={{
+                width: "100%",
+                padding: "10px",
+                backgroundColor: "#007bff",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                marginTop: "10px",
+              }}
+            >
+              Add Selected
+            </button>
+          </div>
         </div>
       )}
 

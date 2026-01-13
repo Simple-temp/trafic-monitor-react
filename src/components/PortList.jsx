@@ -1,17 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
+import downSoundFile from "../assets/baby.mp3";
+import upSoundFile from "../assets/babyl.mp3";
 
 const socket = io("http://localhost:5000");
 const STORAGE_KEY = "selectedports";
-
-/* ================= UTIL ================= */
-function formatBps(bps = 0) {
-  if (bps < 1_000) return `${bps.toFixed(0)} bps`;
-  if (bps < 1_000_000) return `${(bps / 1_000).toFixed(2)} Kbps`;
-  if (bps < 1_000_000_000) return `${(bps / 1_000_000).toFixed(2)} Mbps`;
-  return `${(bps / 1_000_000_000).toFixed(2)} Gbps`;
-}
 
 function speak(text) {
   if (!window.speechSynthesis) return;
@@ -22,57 +16,55 @@ function speak(text) {
   window.speechSynthesis.speak(msg);
 }
 
-const babyCry = new Audio(
-  "https://actions.google.com/sounds/v1/human_voices/baby_crying.ogg"
-);
-
-/* ================= COMPONENT ================= */
 export default function PortList() {
   const [interfaces, setInterfaces] = useState([]);
-  const [traffic, setTraffic] = useState({});
-  const [statuses, setStatuses] = useState({}); // Track current statuses: {devId: {ifIndex: status}}
+  const [statuses, setStatuses] = useState({});
   const [search, setSearch] = useState("");
+  const [popupSearch, setPopupSearch] = useState("");
   const [show, setShow] = useState(false);
   const [selected, setSelected] = useState(
     JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
   );
+  const [popupSelected, setPopupSelected] = useState([]);
+  const [blinking, setBlinking] = useState({});
 
-  /* ================= STATUS MEMORY ================= */
   const lastStatus = useRef({});
-  const timers = useRef({}); // per-port timers for alarms
+  const timers = useRef({});
 
-  /* ================= LOAD INTERFACES ================= */
   useEffect(() => {
     axios.get("http://localhost:5000/api/devices").then((res) => {
       setInterfaces(res.data.interfaces);
-      // Initialize statuses from initial data
       const initialStatuses = {};
       res.data.interfaces.forEach(iface => {
         if (!initialStatuses[iface.device_id]) initialStatuses[iface.device_id] = {};
         initialStatuses[iface.device_id][iface.ifIndex] = iface.ifOperStatus;
       });
       setStatuses(initialStatuses);
-    });
-  }, []);
 
-  /* ================= TRAFFIC AND ALARM HANDLER ================= */
+      // Initialize lastStatus for selected ports to enable alarms on changes
+      selected.forEach(key => {
+        const [devId, ifIndex] = key.split("_");
+        lastStatus.current[key] = initialStatuses[devId]?.[ifIndex] === 1 ? "UP" : "DOWN";
+      });
+    });
+  }, [selected]); // Depend on selected to re-init if changed
+
   useEffect(() => {
     const handleTraffic = (data) => {
-      setTraffic(data);
-
-      // Update statuses assuming data includes status: {devId: {ifIndex: {rx, tx, status}}}
       const newStatuses = { ...statuses };
+      let hasChanges = false;
       Object.entries(data).forEach(([devId, ifs]) => {
         if (!newStatuses[devId]) newStatuses[devId] = {};
         Object.entries(ifs).forEach(([ifIndex, v]) => {
-          if (v.status !== undefined) {
+          if (v.status !== undefined && newStatuses[devId][ifIndex] !== v.status) {
             newStatuses[devId][ifIndex] = v.status;
+            hasChanges = true;
           }
         });
       });
-      setStatuses(newStatuses);
+      if (hasChanges) setStatuses({ ...newStatuses });
 
-      // Alarm logic for selected ports
+      // Alarm logic
       Object.entries(data).forEach(([devId, ifs]) => {
         Object.entries(ifs).forEach(([ifIndex, v]) => {
           const key = `${devId}_${ifIndex}`;
@@ -81,77 +73,84 @@ export default function PortList() {
           const currentStatus = v.status === 1 ? "UP" : "DOWN";
           const prevStatus = lastStatus.current[key];
 
-          if (prevStatus && prevStatus !== currentStatus) {
-            // Clear existing timer for this port
-            if (timers.current[key]) {
-              clearTimeout(timers.current[key]);
-              delete timers.current[key];
-            }
+          console.log(`Alarm check for ${key}: prev=${prevStatus}, current=${currentStatus}`);
 
-            // Set delayed alarm based on status change
+          if (prevStatus && prevStatus !== currentStatus) {
+            if (timers.current[key]) clearTimeout(timers.current[key]);
             if (currentStatus === "DOWN") {
               timers.current[key] = setTimeout(() => {
+                console.log("Triggering DOWN alarm for", key);
                 const iface = interfaces.find(i => i.device_id == devId && i.ifIndex == ifIndex);
                 if (iface) {
                   speak(`Alert! ${iface.device_name} ${iface.ifName} port is down`);
-                  babyCry.play();
+                  const downSound = new Audio(downSoundFile);
+                  downSound.onerror = () => console.log("Sound load error for down");
+                  downSound.play().catch(e => console.log("Play error for down", e));
                 }
                 delete timers.current[key];
-              }, 10000); // 10 seconds delay for DOWN
+              }, 5000);
             } else if (currentStatus === "UP") {
               timers.current[key] = setTimeout(() => {
+                console.log("Triggering UP alarm for", key);
                 const iface = interfaces.find(i => i.device_id == devId && i.ifIndex == ifIndex);
                 if (iface) {
                   speak(`${iface.device_name} ${iface.ifName} port is up`);
+                  const upSound = new Audio(upSoundFile);
+                  upSound.onerror = () => console.log("Sound load error for up");
+                  upSound.play().catch(e => console.log("Play error for up", e));
                 }
                 delete timers.current[key];
-              }, 5000); // 5 seconds delay for UP
+              }, 5000);
             }
           }
-
           lastStatus.current[key] = currentStatus;
         });
       });
     };
 
     socket.on("traffic", handleTraffic);
-
     return () => {
       socket.off("traffic", handleTraffic);
-      // Clear all pending timers on unmount
       Object.values(timers.current).forEach(clearTimeout);
       timers.current = {};
     };
   }, [interfaces, selected, statuses]);
 
-  /* ================= REMOVE PORT ================= */
   const removePort = (key) => {
     const updated = selected.filter((x) => x !== key);
     setSelected(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    // Clear timer and status for removed port
-    if (timers.current[key]) {
-      clearTimeout(timers.current[key]);
-      delete timers.current[key];
-    }
+    if (timers.current[key]) clearTimeout(timers.current[key]);
     delete lastStatus.current[key];
+    setBlinking({ ...blinking, [key]: false });
   };
 
-  /* ================= CHECKBOX HANDLER ================= */
-  const toggleSelect = (iface) => {
-    const key = `${iface.device_id}_${iface.ifIndex}`;
-    if (selected.includes(key)) return; // Prevent re-adding
-
-    const updated = [...selected, key];
-    setSelected(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    // Set initial lastStatus for new selection
-    lastStatus.current[key] = statuses[iface.device_id]?.[iface.ifIndex] === 1 ? "UP" : "DOWN";
+  const togglePopupSelect = (key) => {
+    setPopupSelected((prev) =>
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
+    );
   };
 
-  /* ================= UI ================= */
+  const addSelected = () => {
+    const newSelected = [...selected];
+    const newBlinking = { ...blinking };
+    popupSelected.forEach((key) => {
+      if (!newSelected.includes(key)) {
+        newSelected.push(key);
+        newBlinking[key] = true;
+        setTimeout(() => setBlinking((prev) => ({ ...prev, [key]: false })), 5000);
+        // Initialize lastStatus for new selection
+        const [devId, ifIndex] = key.split("_");
+        lastStatus.current[key] = statuses[devId]?.[ifIndex] === 1 ? "UP" : "DOWN";
+      }
+    });
+    setSelected(newSelected);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSelected));
+    setBlinking(newBlinking);
+    setPopupSelected([]);
+    setShow(false);
+  };
+
   return (
     <div style={{ padding: 20 }}>
       <input
@@ -163,47 +162,117 @@ export default function PortList() {
       />
 
       {show && (
-        <div style={{ background: "#fff", border: "1px solid #ccc", marginTop: 4 }}>
-          {interfaces
-            .filter((i) =>
-              `${i.device_name} ${i.ifName} ${i.ifDescr}`
-                .toLowerCase()
-                .includes(search.toLowerCase())
-            )
-            .map((i) => {
-              const key = `${i.device_id}_${i.ifIndex}`;
-              const currentStatus = statuses[i.device_id]?.[i.ifIndex];
-              const isUp = currentStatus === 1;
-
-              return (
-                <label
-                  key={key}
-                  style={{ display: "flex", padding: 6, cursor: "pointer" }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(key)}
-                    onChange={() => toggleSelect(i)}
-                  />
-                  <span style={{ marginLeft: 8 }}>
-                    <b>{i.device_name}</b> | {i.ifDescr}
-                  </span>
-                  <span
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShow(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #ccc",
+              padding: "20px",
+              width: "1000px",
+              height: "600px",
+              overflowY: "auto",
+              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+              position: "relative",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShow(false)}
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                background: "none",
+                border: "none",
+                fontSize: "18px",
+                cursor: "pointer",
+              }}
+            >
+              ✕
+            </button>
+            <input
+              placeholder="Search device / interface"
+              value={popupSearch}
+              onChange={(e) => setPopupSearch(e.target.value)}
+              style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+            />
+            {interfaces
+              .filter((i) =>
+                `${i.device_name} ${i.ifName} ${i.ifDescr}`
+                  .toLowerCase()
+                  .includes(popupSearch.toLowerCase())
+              )
+              .map((i) => {
+                const key = `${i.device_id}_${i.ifIndex}`;
+                const currentStatus = statuses[i.device_id]?.[i.ifIndex];
+                const isUp = currentStatus === 1;
+                return (
+                  <div
+                    key={key}
                     style={{
-                      fontWeight: "bold",
-                      color: isUp ? "green" : "red",
-                      marginLeft: "auto",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "10px",
+                      borderBottom: "1px solid #eee",
                     }}
                   >
-                    {isUp ? "UP" : "DOWN"}
-                  </span>
-                </label>
-              );
-            })}
+                    <label style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={popupSelected.includes(key)}
+                        onChange={() => togglePopupSelect(key)}
+                        style={{ marginRight: "10px" }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: "bold" }}>{i.device_name}</div>
+                        <div style={{ fontSize: "14px", color: "#666" }}>{i.ifName}</div>
+                      </div>
+                    </label>
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        color: isUp ? "green" : "red",
+                      }}
+                    >
+                      {isUp ? "UP" : "DOWN"}
+                    </span>
+                  </div>
+                );
+              })}
+            <button
+              onClick={addSelected}
+              style={{
+                width: "100%",
+                padding: "10px",
+                backgroundColor: "#007bff",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                marginTop: "10px",
+              }}
+            >
+              Add Selected
+            </button>
+          </div>
         </div>
       )}
 
-      {/* ================= SELECTED PORTS ================= */}
       <div
         style={{
           display: "grid",
@@ -217,9 +286,9 @@ export default function PortList() {
           const iface = interfaces.find(
             (x) => x.device_id == devId && x.ifIndex == ifIndex
           );
-          const cur = traffic?.[devId]?.[ifIndex] || { rx: 0, tx: 0 };
           const currentStatus = statuses[devId]?.[ifIndex];
           const isUp = currentStatus === 1;
+          const isBlinking = blinking[key];
 
           return (
             <div
@@ -230,9 +299,9 @@ export default function PortList() {
                 borderRadius: 6,
                 boxShadow: "0 1px 4px rgba(0,0,0,.15)",
                 position: "relative",
+                animation: isBlinking ? (isUp ? "blinkGreen 1s infinite" : "blinkRed 1s infinite") : "none",
               }}
             >
-              {/* ➖ Remove Button */}
               <button
                 onClick={() => removePort(key)}
                 style={{
@@ -250,26 +319,36 @@ export default function PortList() {
               >
                 −
               </button>
-
-              <b>{iface?.device_name}</b>
-              <div>{iface?.ifName}</div>
-
+              <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
+              <div style={{ fontSize: "14px", color: "#666" }}>{iface?.ifDescr}</div>
               <div
                 style={{
                   fontWeight: "bold",
                   color: isUp ? "green" : "red",
+                  marginTop: 6,
                 }}
               >
                 {isUp ? "UP" : "DOWN"}
-              </div>
-
-              <div style={{ fontWeight: "bold", marginTop: 6 }}>
-                TX: {formatBps(cur.tx)} | RX: {formatBps(cur.rx)}
               </div>
             </div>
           );
         })}
       </div>
+
+      <style>
+        {`
+          @keyframes blinkGreen {
+            0% { background-color: #fff; }
+            50% { background-color: #d4edda; }
+            100% { background-color: #fff; }
+          }
+          @keyframes blinkRed {
+            0% { background-color: #fff; }
+            50% { background-color: #f8d7da; }
+            100% { background-color: #fff; }
+          }
+        `}
+      </style>
     </div>
   );
 }
