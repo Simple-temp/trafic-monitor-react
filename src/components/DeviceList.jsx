@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import downSoundFile from "../assets/down.mp3";
-import upSoundFile from "../assets/up.mp3";
+import downSoundFile from "../assets/inactive.wav";
+import upSoundFile from "../assets/active.wav";
 
 const API_URL = "http://localhost:5000/api/devices";
 const POLL_INTERVAL = 1000;

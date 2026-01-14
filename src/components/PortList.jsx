@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
-import downSoundFile from "../assets/down.mp3";
-import upSoundFile from "../assets/up.mp3";
+import downSoundFile from "../assets/inactive.wav";
+import upSoundFile from "../assets/active.wav";
 
 const socket = io("http://localhost:5000");
 const STORAGE_KEY = "selectedports";
@@ -272,10 +272,11 @@ export default function PortList() {
                 >
                   −
                 </button>
+                <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>  {/* Changed to device_name for consistency */}
                 <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
-                <div style={{ fontSize: "14px", color: "#666" }}>
+                {/* <div style={{ fontSize: "14px", color: "#666" }}>
                   {iface?.ifDescr}
-                </div>
+                </div> */}
                 <div
                   style={{
                     fontWeight: "bold",
@@ -346,6 +347,7 @@ export default function PortList() {
                 >
                   −
                 </button>
+                <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>  {/* Changed to device_name for consistency */}
                 <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
                 <div style={{ fontSize: "14px", color: "#666" }}>
                   {iface?.ifDescr}
