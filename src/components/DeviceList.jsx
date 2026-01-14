@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import downSoundFile from "../assets/baby.mp3";
-import upSoundFile from "../assets/babyl.mp3";
+import downSoundFile from "../assets/down.mp3";
+import upSoundFile from "../assets/up.mp3";
 
 const API_URL = "http://localhost:5000/api/devices";
 const POLL_INTERVAL = 1000;
@@ -66,7 +66,7 @@ const DeviceList = () => {
     // Schedule notification after 10s
     if (!downTimersRef.current[device.id]) {
       downTimersRef.current[device.id] = setTimeout(() => {
-        showToast(`⚠️ ${device.name} is DOWN`, "danger");
+        showToast(`⚠️ ${device.hostname} is DOWN`, "danger");
         delete downTimersRef.current[device.id];
       }, DOWN_NOTIFICATION_DELAY);
     }
@@ -83,7 +83,7 @@ const DeviceList = () => {
     playAudio(upAudio);
 
     // Show UP notification
-    showToast(`✅ ${device.name} is back UP`, "success");
+    showToast(`✅ ${device.hostname} is back UP`, "success");
   };
 
   /* -------------------- TOAST NOTIFICATION -------------------- */
@@ -111,12 +111,27 @@ const DeviceList = () => {
   /* -------------------- UI -------------------- */
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>📡 Device Monitoring</h2>
+      <header style={styles.header}>
+        <h1 style={styles.title}>📡 Network Device Monitoring Dashboard</h1>
+        <p style={styles.subtitle}>Real-time status tracking with alerts</p>
+      </header>
 
       {!monitoring && (
-        <button style={styles.startBtn} onClick={() => setMonitoring(true)}>
-          ▶ Start Monitoring & Enable Alerts
-        </button>
+        <div style={styles.startSection}>
+          <button style={styles.startBtn} onClick={() => setMonitoring(true)}>
+            ▶ Start Monitoring & Enable Alerts
+          </button>
+          <p style={styles.startNote}>
+            Click to begin monitoring devices. You'll receive audio and visual alerts for status changes.
+          </p>
+        </div>
+      )}
+
+      {monitoring && (
+        <div style={styles.monitoringIndicator}>
+          <span style={styles.indicatorDot}></span>
+          Monitoring Active
+        </div>
       )}
 
       <div style={styles.grid}>
@@ -125,19 +140,20 @@ const DeviceList = () => {
             key={d.id}
             style={{
               ...styles.card,
-              background: d.status === "UP" ? "#ecfdf5" : "#fee2e2",
-              borderColor: d.status === "UP" ? "#34d399" : "#f87171",
+              background: d.status === "UP" ? "linear-gradient(135deg, #ecfdf5, #d1fae5)" : "linear-gradient(135deg, #fee2e2, #fecaca)",
+              borderColor: d.status === "UP" ? "#10b981" : "#ef4444",
+              boxShadow: d.status === "UP" ? "0 4px 12px rgba(16, 185, 129, 0.2)" : "0 4px 12px rgba(239, 68, 68, 0.2)",
             }}
           >
-            <h4>{d.name}</h4>
-            <span
+            <div style={styles.deviceName}>{d.hostname}</div>
+            <div
               style={{
                 ...styles.status,
-                color: d.status === "UP" ? "green" : "red",
+                color: d.status === "UP" ? "#059669" : "#dc2626",
               }}
             >
               {d.status}
-            </span>
+            </div>
           </div>
         ))}
       </div>
@@ -149,7 +165,8 @@ const DeviceList = () => {
             key={n.id}
             style={{
               ...styles.toast,
-              background: n.type === "danger" ? "#dc2626" : "#16a34a",
+              background: n.type === "danger" ? "linear-gradient(135deg, #dc2626, #b91c1c)" : "linear-gradient(135deg, #16a34a, #15803d)",
+              animation: "slideInRight 0.5s ease-out",
             }}
           >
             {n.message}
@@ -167,54 +184,148 @@ const DeviceList = () => {
 /* -------------------- STYLES -------------------- */
 const styles = {
   container: {
-    padding: 20,
-    fontFamily: "Segoe UI",
+    minHeight: "100vh",
+    background: "linear-gradient(135deg, #f8fafc, #e2e8f0)",
+    fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    padding: "20px",
+    color: "#1f2937",
+  },
+  header: {
+    textAlign: "center",
+    marginBottom: "30px",
   },
   title: {
-    marginBottom: 15,
+    fontSize: "2.5rem",
+    fontWeight: "700",
+    margin: "0 0 10px 0",
+    color: "#1e293b",
+  },
+  subtitle: {
+    fontSize: "1.1rem",
+    color: "#64748b",
+    margin: "0",
+  },
+  startSection: {
+    textAlign: "center",
+    marginBottom: "40px",
   },
   startBtn: {
-    padding: "10px 18px",
-    marginBottom: 20,
-    background: "#2563eb",
+    padding: "14px 28px",
+    marginBottom: "15px",
+    background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
     color: "#fff",
     border: "none",
-    borderRadius: 6,
+    borderRadius: "8px",
     cursor: "pointer",
+    fontSize: "1rem",
+    fontWeight: "600",
+    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+    transition: "all 0.3s ease",
+  },
+  startNote: {
+    fontSize: "0.95rem",
+    color: "#64748b",
+    maxWidth: "400px",
+    margin: "0 auto",
+  },
+  monitoringIndicator: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "20px",
+    fontSize: "1rem",
+    fontWeight: "500",
+    color: "#059669",
+  },
+  indicatorDot: {
+    width: "10px",
+    height: "10px",
+    background: "#10b981",
+    borderRadius: "50%",
+    marginRight: "8px",
+    animation: "pulse 2s infinite",
   },
   grid: {
     display: "flex",
-    gap: 15,
     flexWrap: "wrap",
+    gap: "20px",
+    marginBottom: "40px",
+    justifyContent: "center",
   },
   card: {
-    minWidth: 220,
-    padding: 15,
-    borderRadius: 10,
+    width: "250px",
+    height: "100px",
+    borderRadius: "12px",
     border: "2px solid",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
     textAlign: "center",
-    transition: "0.3s",
+    transition: "all 0.3s ease",
+    cursor: "pointer",
+    padding: "10px",
+  },
+  deviceName: {
+    fontSize: "1.1rem",
+    fontWeight: "600",
+    marginBottom: "8px",
+    color: "#1e293b",
   },
   status: {
-    fontWeight: "bold",
-    fontSize: 18,
+    fontWeight: "700",
+    fontSize: "1rem",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
   },
   toastWrap: {
     position: "fixed",
-    top: 20,
-    right: 20,
+    top: "20px",
+    right: "20px",
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: "10px",
     zIndex: 9999,
   },
   toast: {
-    padding: "12px 16px",
-    borderRadius: 6,
+    padding: "14px 18px",
+    borderRadius: "8px",
     color: "#fff",
-    fontWeight: "bold",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+    fontWeight: "600",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
+    minWidth: "300px",
   },
 };
+
+// Add CSS animations (you can add this to your global CSS or use a library like styled-components)
+const globalStyles = `
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+`;
+
+// Inject global styles (in a real app, use a CSS file or styled-components)
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.type = "text/css";
+  styleSheet.innerText = globalStyles;
+  document.head.appendChild(styleSheet);
+}
 
 export default DeviceList;
