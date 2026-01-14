@@ -242,10 +242,11 @@ export default function LiveGraph() {
                   </div>
                 );
               })}
-            <button
+          </div>
+                      <button
               onClick={save}
               style={{
-                width: "100%",
+                width: "10%",
                 padding: "10px",
                 backgroundColor: "#007bff",
                 color: "#fff",
@@ -257,7 +258,6 @@ export default function LiveGraph() {
             >
               Add Selected
             </button>
-          </div>
         </div>
       )}
 
