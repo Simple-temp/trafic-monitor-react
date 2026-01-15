@@ -63,6 +63,7 @@ export default function LiveGraph() {
   useEffect(() => {
     axios.get("http://localhost:5000/api/devices").then((res) => {
       setInterfaces(res.data.interfaces);
+      console.log(res.data);
     });
 
     socket.on("traffic", (data) => {
@@ -133,13 +134,22 @@ export default function LiveGraph() {
 
   /* ================= UI ================= */
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, fontFamily: "Arial, sans-serif", backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
+      <h1 style={{ textAlign: "center", marginBottom: 20, color: "#333" }}>Network Interface Traffic Monitor</h1>
       <input
         placeholder="Search device / interface"
         value={search}
         onFocus={() => setShow(true)}
         onChange={(e) => setSearch(e.target.value)}
-        style={{ width: "100%", padding: 12 }}
+        style={{
+          width: "100%",
+          padding: 12,
+          border: "1px solid #ccc",
+          borderRadius: 8,
+          fontSize: 16,
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          marginBottom: 20,
+        }}
       />
 
       {show && (
@@ -168,6 +178,7 @@ export default function LiveGraph() {
               overflowY: "auto",
               boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
               position: "relative",
+              borderRadius: 8,
             }}
             onClick={(e) => e.stopPropagation()}  // Prevent closing on content click
           >
@@ -182,89 +193,115 @@ export default function LiveGraph() {
                 border: "none",
                 fontSize: "18px",
                 cursor: "pointer",
+                color: "#666",
               }}
             >
               ✕
             </button>
+
+            <h2 style={{ marginBottom: 20, color: "#333" }}>Select Interfaces</h2>
 
             {/* Search bar inside popup */}
             <input
               placeholder="Search device / interface"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                marginBottom: "20px",
+                border: "1px solid #ccc",
+                borderRadius: 4,
+                fontSize: 14,
+              }}
             />
-
-            {interfaces
-              .filter((i) =>
-                `${i.device_name} ${i.ifName} ${i.ifDescr}`
-                  .toLowerCase()
-                  .includes(search.toLowerCase())
-              )
-              .map((i) => {
-                const key = `${i.device_id}_${i.ifIndex}`;
-                return (
-                  <div
-                    key={key}
-                    style={{
-                      marginBottom: "10px",
-                      padding: "10px",
-                      border: "1px solid #eee",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      transition: "background-color 0.2s",
-                    }}
-                    onMouseEnter={(e) => (e.target.style.backgroundColor = "#ffffff")}
-                    onMouseLeave={(e) => (e.target.style.backgroundColor = "transparent")}
-                  >
-                    <label style={{ display: "flex", alignItems: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(key)}
-                        onChange={(e) =>
-                          e.target.checked
-                            ? setSelected([...selected, key])
-                            : setSelected(selected.filter((x) => x !== key))
-                        }
-                        style={{ marginRight: "10px" }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold" }}>{i.device_name}</div>
-                        <div style={{ fontSize: "14px", color: "#666" }}>{i.ifDescr}</div>
-                        {/* <div style={{ fontSize: "12px", color: "#888" }}>Speed: {formatBps(i.ifSpeed)}</div> */}
-                        <div style={{ fontSize: "12px", color: "#888" }}>
-                          Status: <span style={{ color: i.ifOperStatus === 1 ? "green" : "red" }}>
-                            {i.ifOperStatus === 1 ? "UP" : "DOWN"}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                );
-              })}
-          </div>
-                      <button
+            
+            <button
               onClick={save}
               style={{
-                width: "10%",
-                padding: "10px",
-                backgroundColor: "#007bff",
+                width: "100%",
+                padding: "12px",
+                backgroundColor: "#2196F3",
                 color: "#fff",
                 border: "none",
-                borderRadius: "4px",
+                borderRadius: 8,
                 cursor: "pointer",
-                marginTop: "10px",
+                fontSize: 16,
+                fontWeight: "bold",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                transition: "background-color 0.2s",
               }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = "#1976D2")}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = "#2196F3")}
             >
-              Add Selected
+              Add Selected Interfaces
             </button>
+
+            <div style={{ marginBottom: 20 }}>
+              {interfaces
+                .filter((i) =>
+                  `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
+                    .toLowerCase()
+                    .includes(search.toLowerCase())
+                )
+                .map((i) => {
+                  const key = `${i.device_id}_${i.ifIndex}`;
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        marginBottom: "10px",
+                        padding: "15px",
+                        border: "1px solid #eee",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        transition: "background-color 0.2s, box-shadow 0.2s",
+                        backgroundColor: "#fafafa",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#ffffff";
+                        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fafafa";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    >
+                      <label style={{ display: "flex", alignItems: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(key)}
+                          onChange={(e) =>
+                            e.target.checked
+                              ? setSelected([...selected, key])
+                              : setSelected(selected.filter((x) => x !== key))
+                          }
+                          style={{ marginRight: "15px", transform: "scale(1.2)" }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: "bold", fontSize: 16, color: "#333" }}>{i.device_name}</div>
+                          <div style={{ fontSize: "14px", color: "#666", marginTop: 5 }}>{i.ifDescr}</div>
+                          <div style={{ fontSize: "14px", color: "#666", marginTop: 5 }}>{i.ifAlias}</div>
+                          <div style={{ fontSize: "12px", color: "#888", marginTop: 5 }}>
+                            Status: <span style={{ color: i.ifOperStatus === 1 ? "#4CAF50" : "#F44336", fontWeight: "bold" }}>
+                              {i.ifOperStatus === 1 ? "UP" : "DOWN"}
+                            </span>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  );
+                })}
+            </div>
+
+          </div>
         </div>
       )}
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
           gap: 20,
           marginTop: 20,
         }}
@@ -283,20 +320,41 @@ export default function LiveGraph() {
               key={key}
               style={{
                 background: "#fff",
-                padding: 15,
-                borderRadius: 6,
-                boxShadow: "0 1px 4px rgba(0,0,0,.15)",
+                padding: 20,
+                borderRadius: 12,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                border: "1px solid #e0e0e0",
+                position: "relative",
               }}
             >
-              <button onClick={() => remove(key)} style={{ float: "right" }}>
+              <button
+                onClick={() => remove(key)}
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  background: "none",
+                  border: "none",
+                  fontSize: "18px",
+                  cursor: "pointer",
+                  color: "#666",
+                }}
+              >
                 ✕
               </button>
 
-              <div><b>{iface?.device_name}</b></div>
-              <div>{iface?.ifName}</div>
-              <div style={{ fontSize: 13 }}>{iface?.ifDescr}</div>
+              <div style={{ marginBottom: 10 }}>
+                <h3 style={{ margin: 0, color: "#333", fontSize: 18 }}>{iface?.device_name}</h3>
+                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifDescr}</p>
+                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifAlias}</p>
+                <p style={{ margin: 5, color: "#888", fontSize: 12 }}>
+                  Port Status: <span style={{ color: iface?.ifOperStatus === 1 ? "#4CAF50" : "#F44336", fontWeight: "bold" }}>
+                    {iface?.ifOperStatus === 1 ? "UP" : "DOWN"}
+                  </span>
+                </p>
+              </div>
 
-              <div style={{ margin: "6px 0", fontWeight: "bold" }}>
+              <div style={{ margin: "10px 0", fontWeight: "bold", fontSize: 14, color: "#333" }}>
                 TX: {formatBps(cur.tx)} | RX: {formatBps(cur.rx)}
               </div>
 
@@ -311,7 +369,8 @@ export default function LiveGraph() {
                         tension: 0.4,
                         pointRadius: 0,
                         fill: true,
-                        backgroundColor: "rgba(33,150,243,.35)",
+                        backgroundColor: "rgba(76,175,80,0.2)", // Professional green
+                        borderColor: "#4CAF50",
                         borderWidth: 2,
                       },
                       {
@@ -320,7 +379,8 @@ export default function LiveGraph() {
                         tension: 0.4,
                         pointRadius: 0,
                         fill: true,
-                        backgroundColor: "rgba(244,67,54,.35)",
+                        backgroundColor: "rgba(33,150,243,0.2)", // Professional blue
+                        borderColor: "#2196F3",
                         borderWidth: 2,
                       },
                     ],
@@ -333,10 +393,22 @@ export default function LiveGraph() {
                       easing: "linear",
                     },
                     plugins: {
-                      legend: { position: "bottom" },
+                      legend: { position: "bottom", labels: { font: { size: 12 } } },
+                      tooltip: {
+                        backgroundColor: "rgba(0,0,0,0.8)",
+                        titleColor: "#fff",
+                        bodyColor: "#fff",
+                      },
                     },
                     scales: {
-                      y: { beginAtZero: true },
+                      x: {
+                        grid: { display: false },
+                        ticks: { display: false },
+                      },
+                      y: {
+                        beginAtZero: true,
+                        grid: { color: "rgba(0,0,0,0.1)" },
+                      },
                     },
                   }}
                 />

@@ -92,7 +92,7 @@ const DeviceList = () => {
     setNotifications((p) => [...p, { id, message, type }]);
     setTimeout(() => {
       setNotifications((p) => p.filter((n) => n.id !== id));
-    }, 5000);
+    }, 1000);
   };
 
   const clearAllDownTimers = () => {

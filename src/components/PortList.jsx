@@ -36,6 +36,7 @@ export default function PortList() {
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/devices").then((res) => {
+      console.log(res.data)
       setInterfaces(res.data.interfaces);
       const initialStatuses = {};
       res.data.interfaces.forEach((iface) => {
@@ -81,9 +82,9 @@ export default function PortList() {
           const currentStatus = v.status === 1 ? "UP" : "DOWN";
           const prevStatus = lastStatus.current[key];
 
-          console.log(
-            `Alarm check for ${key}: prev=${prevStatus}, current=${currentStatus}`
-          );
+          // console.log(
+          //   `Alarm check for ${key}: prev=${prevStatus}, current=${currentStatus}`
+          // );
 
           if (prevStatus && prevStatus !== currentStatus) {
             if (currentStatus === "DOWN") {
@@ -94,9 +95,9 @@ export default function PortList() {
               // Schedule toast after 10s (like DeviceList)
               if (!timers.current[key]) {
                 timers.current[key] = setTimeout(() => {
-                  showToast(`⚠️ Port ${key} is DOWN`, "danger");
+                  // showToast(`⚠️ Port ${key} is DOWN`, "danger");
                   delete timers.current[key];
-                }, 10000); // 10s delay
+                }, 1000); // 10s delay
               }
             } else if (currentStatus === "UP") {
               // Clear any pending DOWN toast
@@ -110,7 +111,7 @@ export default function PortList() {
               speak(`Port ${key} is up`); // Kept speech for consistency
 
               // Show UP toast immediately (like DeviceList)
-              showToast(`✅ Port ${key} is back UP`, "success");
+              // showToast(`✅ Port ${key} is back UP`, "success");
             }
           }
           lastStatus.current[key] = currentStatus;
@@ -274,9 +275,7 @@ export default function PortList() {
                 </button>
                 <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>  {/* Changed to device_name for consistency */}
                 <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
-                {/* <div style={{ fontSize: "14px", color: "#666" }}>
-                  {iface?.ifDescr}
-                </div> */}
+                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifAlias}</p>
                 <div
                   style={{
                     fontWeight: "bold",
@@ -349,9 +348,10 @@ export default function PortList() {
                 </button>
                 <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>  {/* Changed to device_name for consistency */}
                 <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
-                <div style={{ fontSize: "14px", color: "#666" }}>
+                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifAlias}</p>
+                {/* <div style={{ fontSize: "14px", color: "#666" }}>
                   {iface?.ifDescr}
-                </div>
+                </div> */}
                 <div
                   style={{
                     fontWeight: "bold",
@@ -460,6 +460,7 @@ export default function PortList() {
                             <div style={{ fontSize: "14px", color: "#666" }}>
                               {i.ifName}
                             </div>
+                            <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{i?.ifAlias}</p>
                           </div>
                         </label>
                         <span
