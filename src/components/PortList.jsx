@@ -36,7 +36,7 @@ export default function PortList() {
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/devices").then((res) => {
-      console.log(res.data)
+      console.log(res.data);
       setInterfaces(res.data.interfaces);
       const initialStatuses = {};
       res.data.interfaces.forEach((iface) => {
@@ -273,9 +273,14 @@ export default function PortList() {
                 >
                   −
                 </button>
-                <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>  {/* Changed to device_name for consistency */}
-                <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
-                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifAlias}</p>
+                <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>{" "}
+                {/* Changed to device_name for consistency */}
+                <div style={{ fontWeight: "bold", display: "flex" }}>
+                  {iface?.ifName}
+                  <p style={{ marginLeft: 5, color: "#666", fontSize: 14 }}>
+                    {iface?.ifAlias}
+                  </p>
+                </div>
                 <div
                   style={{
                     fontWeight: "bold",
@@ -346,12 +351,14 @@ export default function PortList() {
                 >
                   −
                 </button>
-                <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>  {/* Changed to device_name for consistency */}
-                <div style={{ fontWeight: "bold" }}>{iface?.ifName}</div>
-                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifAlias}</p>
-                {/* <div style={{ fontSize: "14px", color: "#666" }}>
-                  {iface?.ifDescr}
-                </div> */}
+                <div style={{ fontWeight: "bold" }}>{iface?.device_name}</div>{" "}
+                {/* Changed to device_name for consistency */}
+                <div style={{ fontWeight: "bold", display: "flex" }}>
+                  {iface?.ifName}
+                  <p style={{ marginLeft: 5, color: "#666", fontSize: 14 }}>
+                    {iface?.ifAlias}
+                  </p>
+                </div>
                 <div
                   style={{
                     fontWeight: "bold",
@@ -460,7 +467,11 @@ export default function PortList() {
                             <div style={{ fontSize: "14px", color: "#666" }}>
                               {i.ifName}
                             </div>
-                            <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{i?.ifAlias}</p>
+                            <p
+                              style={{ margin: 5, color: "#666", fontSize: 14 }}
+                            >
+                              {i?.ifAlias}
+                            </p>
                           </div>
                         </label>
                         <span
@@ -506,15 +517,17 @@ export default function PortList() {
       )}
 
       {/* TOASTS - Added like DeviceList */}
-      <div style={{
-        position: "fixed",
-        top: "20px",
-        right: "20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        zIndex: 9999,
-      }}>
+      <div
+        style={{
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          zIndex: 9999,
+        }}
+      >
         {notifications.map((n) => (
           <div
             key={n.id}
@@ -525,7 +538,10 @@ export default function PortList() {
               fontWeight: "600",
               boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
               minWidth: "300px",
-              background: n.type === "danger" ? "linear-gradient(135deg, #dc2626, #b91c1c)" : "linear-gradient(135deg, #16a34a, #15803d)",
+              background:
+                n.type === "danger"
+                  ? "linear-gradient(135deg, #dc2626, #b91c1c)"
+                  : "linear-gradient(135deg, #16a34a, #15803d)",
               animation: "slideInRight 0.5s ease-out",
             }}
           >

@@ -90,7 +90,7 @@ export default function LiveGraph() {
 
               /* After 10 seconds → alarm ON */
               if (silentSeconds.current[key] === 10) {
-                speak("Interface traffic failed");
+                // speak("Interface traffic failed");
                 alarmActive.current[key] = true;
               }
 
@@ -100,12 +100,12 @@ export default function LiveGraph() {
                 silentSeconds.current[key] > 10 &&
                 (silentSeconds.current[key] - 10) % 5 === 0
               ) {
-                speak("Interface traffic failed");
+                // speak("Interface traffic failed");
               }
             } else {
               /* Bandwidth restored */
               if (alarmActive.current[key]) {
-                speak("Bandwidth stable");
+                // speak("Bandwidth stable");
               }
               silentSeconds.current[key] = 0;
               alarmActive.current[key] = false;
@@ -123,7 +123,7 @@ export default function LiveGraph() {
   /* ================= ACTIONS ================= */
   const save = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
-    setShow(false);  // Close popup after adding
+    setShow(false); // Close popup after adding
   };
 
   const remove = (key) => {
@@ -134,8 +134,17 @@ export default function LiveGraph() {
 
   /* ================= UI ================= */
   return (
-    <div style={{ padding: 20, fontFamily: "Arial, sans-serif", backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
-      <h1 style={{ textAlign: "center", marginBottom: 20, color: "#333" }}>Network Interface Traffic Monitor</h1>
+    <div
+      style={{
+        padding: 20,
+        fontFamily: "Arial, sans-serif",
+        backgroundColor: "#f5f5f5",
+        minHeight: "100vh",
+      }}
+    >
+      <h1 style={{ textAlign: "center", marginBottom: 20, color: "#333" }}>
+        Network Interface Traffic Monitor
+      </h1>
       <input
         placeholder="Search device / interface"
         value={search}
@@ -166,7 +175,7 @@ export default function LiveGraph() {
             alignItems: "center",
             zIndex: 1000,
           }}
-          onClick={() => setShow(false)}  // Close on backdrop click
+          onClick={() => setShow(false)} // Close on backdrop click
         >
           <div
             style={{
@@ -180,7 +189,7 @@ export default function LiveGraph() {
               position: "relative",
               borderRadius: 8,
             }}
-            onClick={(e) => e.stopPropagation()}  // Prevent closing on content click
+            onClick={(e) => e.stopPropagation()} // Prevent closing on content click
           >
             {/* Cross icon to close */}
             <button
@@ -199,7 +208,9 @@ export default function LiveGraph() {
               ✕
             </button>
 
-            <h2 style={{ marginBottom: 20, color: "#333" }}>Select Interfaces</h2>
+            <h2 style={{ marginBottom: 20, color: "#333" }}>
+              Select Interfaces
+            </h2>
 
             {/* Search bar inside popup */}
             <input
@@ -215,7 +226,7 @@ export default function LiveGraph() {
                 fontSize: 14,
               }}
             />
-            
+
             <button
               onClick={save}
               style={{
@@ -260,7 +271,8 @@ export default function LiveGraph() {
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = "#ffffff";
-                        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                        e.currentTarget.style.boxShadow =
+                          "0 2px 8px rgba(0,0,0,0.1)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = "#fafafa";
@@ -276,14 +288,55 @@ export default function LiveGraph() {
                               ? setSelected([...selected, key])
                               : setSelected(selected.filter((x) => x !== key))
                           }
-                          style={{ marginRight: "15px", transform: "scale(1.2)" }}
+                          style={{
+                            marginRight: "15px",
+                            transform: "scale(1.2)",
+                          }}
                         />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: "bold", fontSize: 16, color: "#333" }}>{i.device_name}</div>
-                          <div style={{ fontSize: "14px", color: "#666", marginTop: 5 }}>{i.ifDescr}</div>
-                          <div style={{ fontSize: "14px", color: "#666", marginTop: 5 }}>{i.ifAlias}</div>
-                          <div style={{ fontSize: "12px", color: "#888", marginTop: 5 }}>
-                            Status: <span style={{ color: i.ifOperStatus === 1 ? "#4CAF50" : "#F44336", fontWeight: "bold" }}>
+                        <div style={{ display: "flex", alignItems: "rounded" }}>
+                          <div
+                            style={{
+                              fontWeight: "bold",
+                              fontSize: 16,
+                              color: "#333",
+                            }}
+                          >
+                            {i.device_name} :{" "}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              color: "#666",
+                              marginLeft: 10,
+                            }}
+                          >
+                            {" "}
+                            {i.ifDescr}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              color: "#666",
+                              marginLeft: 10,
+                            }}
+                          >
+                            {i.ifAlias}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#888",
+                              marginLeft: 10,
+                            }}
+                          >
+                            Status:{" "}
+                            <span
+                              style={{
+                                color:
+                                  i.ifOperStatus === 1 ? "#4CAF50" : "#F44336",
+                                fontWeight: "900",
+                              }}
+                            >
                               {i.ifOperStatus === 1 ? "UP" : "DOWN"}
                             </span>
                           </div>
@@ -293,7 +346,6 @@ export default function LiveGraph() {
                   );
                 })}
             </div>
-
           </div>
         </div>
       )}
@@ -344,17 +396,51 @@ export default function LiveGraph() {
               </button>
 
               <div style={{ marginBottom: 10 }}>
-                <h3 style={{ margin: 0, color: "#333", fontSize: 18 }}>{iface?.device_name}</h3>
-                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifDescr}</p>
-                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>{iface?.ifAlias}</p>
+                <h3 style={{ margin: 0, color: "#333", fontSize: 18 }}>
+                  {iface?.device_name}
+                </h3>
+                <div style={{ display: "flex" }}>
+                  <p
+                    style={{
+                      margin: 5,
+                      color: "#666",
+                      fontSize: 14,
+                    }}
+                  >
+                    {iface?.ifDescr}
+                  </p>
+                  <p
+                    style={{
+                      margin: 5,
+                      color: "#666",
+                      fontSize: 14,
+                      marginLeft: 10,
+                    }}
+                  >
+                    -  {iface?.ifAlias}
+                  </p>
+                </div>
                 <p style={{ margin: 5, color: "#888", fontSize: 12 }}>
-                  Port Status: <span style={{ color: iface?.ifOperStatus === 1 ? "#4CAF50" : "#F44336", fontWeight: "bold" }}>
+                  Port Status:{" "}
+                  <span
+                    style={{
+                      color: iface?.ifOperStatus === 1 ? "#4CAF50" : "#F44336",
+                      fontWeight: "bold",
+                    }}
+                  >
                     {iface?.ifOperStatus === 1 ? "UP" : "DOWN"}
                   </span>
                 </p>
               </div>
 
-              <div style={{ margin: "10px 0", fontWeight: "bold", fontSize: 14, color: "#333" }}>
+              <div
+                style={{
+                  margin: "10px 0",
+                  fontWeight: "bold",
+                  fontSize: 14,
+                  color: "#333",
+                }}
+              >
                 TX: {formatBps(cur.tx)} | RX: {formatBps(cur.rx)}
               </div>
 
@@ -393,7 +479,10 @@ export default function LiveGraph() {
                       easing: "linear",
                     },
                     plugins: {
-                      legend: { position: "bottom", labels: { font: { size: 12 } } },
+                      legend: {
+                        position: "bottom",
+                        labels: { font: { size: 12 } },
+                      },
                       tooltip: {
                         backgroundColor: "rgba(0,0,0,0.8)",
                         titleColor: "#fff",
