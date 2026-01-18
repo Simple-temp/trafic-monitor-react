@@ -7,10 +7,17 @@ const API_URL = "http://localhost:5000/api/devices";
 const POLL_INTERVAL = 1000;
 const DOWN_NOTIFICATION_DELAY = 10000; // 10s
 
+// Icon components (using simple SVG or emoji for demonstration; replace with actual icons if needed)
+const SwitchIcon = () => <span>🔌</span>; // Switch icon
+const JuniperIcon = () => <span>🌐</span>; // Juniper router icon
+const MikrotikIcon = () => <span>📡</span>; // Mikrotik icon
+const DefaultIcon = () => <span>🖥️</span>; // Default device icon
+
 const DeviceList = () => {
   const [devices, setDevices] = useState([]);
+  const [downDevices, setDownDevices] = useState([]);
+  const [upDevices, setUpDevices] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [monitoring, setMonitoring] = useState(false);
 
   const prevStatusRef = useRef({});
   const downTimersRef = useRef({});
@@ -19,10 +26,8 @@ const DeviceList = () => {
   const downAudio = useRef(null);
   const upAudio = useRef(null);
 
-  /* -------------------- START / STOP MONITORING -------------------- */
+  /* -------------------- AUTO START MONITORING ON MOUNT -------------------- */
   useEffect(() => {
-    if (!monitoring) return;
-
     fetchDevices();
     pollingRef.current = setInterval(fetchDevices, POLL_INTERVAL);
 
@@ -30,7 +35,7 @@ const DeviceList = () => {
       clearInterval(pollingRef.current);
       clearAllDownTimers();
     };
-  }, [monitoring]);
+  }, []);
 
   /* -------------------- FETCH DEVICE DATA -------------------- */
   const fetchDevices = async () => {
@@ -53,6 +58,19 @@ const DeviceList = () => {
       });
 
       setDevices(list);
+
+      // Categorize devices: DOWN at top, UP sorted by ID below
+      const down = [];
+      const up = [];
+      list.forEach((d) => {
+        if (d.status === "UP") {
+          up.push(d);
+        } else {
+          down.push(d);
+        }
+      });
+      setDownDevices(down);
+      setUpDevices(up.sort((a, b) => a.id - b.id)); // Sort UP devices by ID for "previous place"
     } catch (err) {
       console.error("Device API error:", err);
     }
@@ -108,52 +126,60 @@ const DeviceList = () => {
     audioRef.current.play().catch(() => {});
   };
 
+  /* -------------------- GET DEVICE ICON -------------------- */
+  const getDeviceIcon = (hostname) => {
+    const lowerHostname = hostname.toLowerCase();
+    if (lowerHostname.includes("switch")) return <SwitchIcon />;
+    if (lowerHostname.includes("juniper")) return <JuniperIcon />;
+    if (lowerHostname.includes("mikrotik")) return <MikrotikIcon />;
+    return <DefaultIcon />;
+  };
+
+  /* -------------------- DISPLAYED DEVICES -------------------- */
+  const displayedDevices = [...downDevices, ...upDevices];
+
   /* -------------------- UI -------------------- */
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>📡 Network Device Monitoring Dashboard</h1>
-        <p style={styles.subtitle}>Real-time status tracking with alerts</p>
+        <p style={styles.subtitle}>Real-time status tracking with automatic alerts</p>
       </header>
 
-      {!monitoring && (
-        <div style={styles.startSection}>
-          <button style={styles.startBtn} onClick={() => setMonitoring(true)}>
-            ▶ Start Monitoring & Enable Alerts
-          </button>
-          <p style={styles.startNote}>
-            Click to begin monitoring devices. You'll receive audio and visual alerts for status changes.
-          </p>
-        </div>
-      )}
+      <div style={styles.monitoringIndicator}>
+        <span style={styles.indicatorDot}></span>
+        Monitoring Active (Automatic)
+      </div>
 
-      {monitoring && (
-        <div style={styles.monitoringIndicator}>
-          <span style={styles.indicatorDot}></span>
-          Monitoring Active
+      {/* Table-like layout for Zabbix-style rows */}
+      <div style={styles.tableContainer}>
+        <div style={styles.tableHeader}>
+          <div style={styles.headerCell}>Device Name</div>
+          <div style={styles.headerCell}>IP Address</div>
+          <div style={styles.headerCell}>Status</div>
+          <div style={styles.headerCell}>Type</div>
         </div>
-      )}
-
-      <div style={styles.grid}>
-        {devices.map((d) => (
+        {displayedDevices.map((d) => (
           <div
             key={d.id}
             style={{
-              ...styles.card,
-              background: d.status === "UP" ? "linear-gradient(135deg, #ecfdf5, #d1fae5)" : "linear-gradient(135deg, #fee2e2, #fecaca)",
-              borderColor: d.status === "UP" ? "#10b981" : "#ef4444",
-              boxShadow: d.status === "UP" ? "0 4px 12px rgba(16, 185, 129, 0.2)" : "0 4px 12px rgba(239, 68, 68, 0.2)",
+              ...styles.tableRow,
+              background: d.status === "UP" ? "#f0fdf4" : "#fef2f2",
+              borderLeft: `4px solid ${d.status === "UP" ? "#10b981" : "#ef4444"}`,
             }}
           >
-            <div style={styles.deviceName}>{d.hostname}</div>
+            <div style={styles.cell}>{d.hostname}</div>
+            <div style={styles.cell}>{d.ip_address || "N/A"}</div> {/* Assuming IP is in data; adjust if needed */}
             <div
               style={{
-                ...styles.status,
+                ...styles.cell,
                 color: d.status === "UP" ? "#059669" : "#dc2626",
+                fontWeight: "bold",
               }}
             >
               {d.status}
             </div>
+            <div style={styles.cell}>{getDeviceIcon(d.hostname)}</div>
           </div>
         ))}
       </div>
@@ -205,29 +231,6 @@ const styles = {
     color: "#64748b",
     margin: "0",
   },
-  startSection: {
-    textAlign: "center",
-    marginBottom: "40px",
-  },
-  startBtn: {
-    padding: "14px 28px",
-    marginBottom: "15px",
-    background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "1rem",
-    fontWeight: "600",
-    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
-    transition: "all 0.3s ease",
-  },
-  startNote: {
-    fontSize: "0.95rem",
-    color: "#64748b",
-    maxWidth: "400px",
-    margin: "0 auto",
-  },
   monitoringIndicator: {
     display: "flex",
     alignItems: "center",
@@ -245,38 +248,38 @@ const styles = {
     marginRight: "8px",
     animation: "pulse 2s infinite",
   },
-  grid: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "20px",
-    marginBottom: "40px",
-    justifyContent: "center",
+  tableContainer: {
+    width: "100%", // Increased width to full width
+    margin: "0 auto",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    overflow: "hidden",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
-  card: {
-    width: "250px",
-    height: "100px",
-    borderRadius: "12px",
-    border: "2px solid",
+  tableHeader: {
     display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
+    background: "#f1f5f9",
+    fontWeight: "bold",
+    color: "#374151",
+    padding: "12px 0",
+  },
+  headerCell: {
+    flex: 1,
     textAlign: "center",
-    transition: "all 0.3s ease",
-    cursor: "pointer",
-    padding: "10px",
+    padding: "0 10px",
   },
-  deviceName: {
-    fontSize: "1.1rem",
-    fontWeight: "600",
-    marginBottom: "8px",
-    color: "#1e293b",
+  tableRow: {
+    display: "flex",
+    borderBottom: "1px solid #e2e8f0",
+    transition: "background 0.3s ease",
   },
-  status: {
-    fontWeight: "700",
-    fontSize: "1rem",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
+  cell: {
+    flex: 1,
+    textAlign: "center",
+    padding: "12px 10px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   toastWrap: {
     position: "fixed",

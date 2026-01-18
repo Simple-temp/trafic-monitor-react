@@ -13,12 +13,17 @@ import {
   Snackbar,
   Alert,
   IconButton,
+  Card,
+  CardContent,
+  Divider,
 } from '@mui/material';
 import {
   DeviceHub as DeviceIcon,
   NetworkCheck as IpIcon,
   VpnKey as CommunityIcon,
   Add as AddIcon,
+  Dashboard as DashboardIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -76,96 +81,111 @@ const DeviceAdd = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 700, mx: 'auto', mt: 4, p: 2 }}>
-      <Paper elevation={6} sx={{ p: 4, borderRadius: 3, background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <DeviceIcon sx={{ mr: 2, color: 'primary.main', fontSize: 40 }} />
-          <Typography variant="h4" component="h1" color="primary" fontWeight="bold">
-            Add New Device
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Fill in the details below to register a new device in the NMS system.
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit}>
-          <Grid container spacing={4}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Hostname"
-                name="hostname"
-                value={formData.hostname}
-                onChange={handleChange}
-                error={!!errors.hostname}
-                helperText={errors.hostname}
-                variant="outlined"
-                InputProps={{
-                  startAdornment: <DeviceIcon sx={{ mr: 1, color: 'action.active' }} />,
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="IP Address"
-                name="ip_address"
-                value={formData.ip_address}
-                onChange={handleChange}
-                error={!!errors.ip_address}
-                helperText={errors.ip_address}
-                variant="outlined"
-                InputProps={{
-                  startAdornment: <IpIcon sx={{ mr: 1, color: 'action.active' }} />,
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel>SNMP Version</InputLabel>
-                <Select
-                  label="SNMP Version"
-                  name="snmp_version"
-                  value={formData.snmp_version}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="1">v1</MenuItem>
-                  <MenuItem value="2c">v2c</MenuItem>
-                  <MenuItem value="3">v3</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="SNMP Community"
-                name="snmp_community"
-                value={formData.snmp_community}
-                onChange={handleChange}
-                error={!!errors.snmp_community}
-                helperText={errors.snmp_community}
-                variant="outlined"
-                type="password"
-                InputProps={{
-                  startAdornment: <CommunityIcon sx={{ mr: 1, color: 'action.active' }} />,
-                }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                fullWidth
-                disabled={loading}
-                startIcon={<AddIcon />}
-                sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 'bold' }}
-              >
-                {loading ? 'Adding Device...' : 'Add Device'}
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
-      </Paper>
+    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)', p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, color: 'white' }}>
+      </Box>
+
+      {/* Main Content */}
+      <Grid container spacing={3}>
+        {/* Sidebar or Info Panel */}
+        {/* Form */}
+        <Grid item xs={12} md={9}>
+          <Paper elevation={8} sx={{ p: 4, borderRadius: 3, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <DeviceIcon sx={{ mr: 2, color: '#1e40af', fontSize: 40 }} />
+              <Typography variant="h4" component="h1" color="#1e40af" fontWeight="bold">
+                Add New Device
+              </Typography>
+            </Box>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              Register a new network device for monitoring. Ensure all fields are filled accurately.
+            </Typography>
+            <Box component="form" onSubmit={handleSubmit}>
+              <Grid container spacing={4}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Hostname"
+                    name="hostname"
+                    value={formData.hostname}
+                    onChange={handleChange}
+                    error={!!errors.hostname}
+                    helperText={errors.hostname}
+                    variant="outlined"
+                    InputProps={{
+                      startAdornment: <DeviceIcon sx={{ mr: 1, color: 'action.active' }} />,
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="IP Address"
+                    name="ip_address"
+                    value={formData.ip_address}
+                    onChange={handleChange}
+                    error={!!errors.ip_address}
+                    helperText={errors.ip_address}
+                    variant="outlined"
+                    InputProps={{
+                      startAdornment: <IpIcon sx={{ mr: 1, color: 'action.active' }} />,
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth variant="outlined" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
+                    <InputLabel>SNMP Version</InputLabel>
+                    <Select
+                      label="SNMP Version"
+                      name="snmp_version"
+                      value={formData.snmp_version}
+                      onChange={handleChange}
+                    >
+                      <MenuItem value="1">v1</MenuItem>
+                      <MenuItem value="2c">v2c</MenuItem>
+                      <MenuItem value="3">v3</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="SNMP Community"
+                    name="snmp_community"
+                    value={formData.snmp_community}
+                    onChange={handleChange}
+                    error={!!errors.snmp_community}
+                    helperText={errors.snmp_community}
+                    variant="outlined"
+                    type="password"
+                    InputProps={{
+                      startAdornment: <CommunityIcon sx={{ mr: 1, color: 'action.active' }} />,
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    disabled={loading}
+                    startIcon={<AddIcon />}
+                    sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 'bold', borderRadius: 2, background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)' }}
+                  >
+                    {loading ? 'Adding Device...' : 'Add Device'}
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

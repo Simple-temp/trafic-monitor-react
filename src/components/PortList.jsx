@@ -3,6 +3,7 @@ import axios from "axios";
 import { io } from "socket.io-client";
 import downSoundFile from "../assets/inactive.wav";
 import upSoundFile from "../assets/active.wav";
+import { ToastContainer, toast } from 'react-toastify';
 
 const socket = io("http://localhost:5000");
 
@@ -22,6 +23,7 @@ export default function PortList() {
   const [upPorts, setUpPorts] = useState([]);
   const [downInList, setDownInList] = useState([]);
   const [animating, setAnimating] = useState({});
+  const [searchQuery, setSearchQuery] = useState(""); // Added state for search query
 
   const lastStatus = useRef({});
   const timers = useRef({});
@@ -105,7 +107,8 @@ export default function PortList() {
               // Schedule toast after 10s
               if (!timers.current[key]) {
                 timers.current[key] = setTimeout(() => {
-                  showToast(`⚠️ ${alias} is DOWN`, "danger");
+                  // showToast(`⚠️ ${alias} is DOWN`, "danger");
+                  toast.error(`✅ ${alias} is DOWN`)
                   delete timers.current[key];
                 }, 10000); // Fixed to 10s delay
               }
@@ -139,7 +142,8 @@ export default function PortList() {
               speak(`${alias} is up`);
 
               // Show UP toast immediately
-              showToast(`✅ ${alias} is back UP`, "success");
+              // showToast(`✅ ${alias} is back UP`, "success");
+              toast.success(`✅ ${alias} is back UP`)
             }
           }
           lastStatus.current[key] = currentStatus;
@@ -181,6 +185,16 @@ export default function PortList() {
   // Combined list: downInList (DOWN ports at top) + upPorts (UP ports sorted)
   const displayedPorts = [...downInList, ...upPorts];
 
+  // Filter ports based on search query (case-insensitive search on device_name, ifDescr, ifAlias)
+  const filteredPorts = displayedPorts.filter((i) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      i.device_name.toLowerCase().includes(query) ||
+      i.ifDescr.toLowerCase().includes(query) ||
+      (i.ifAlias && i.ifAlias.toLowerCase().includes(query))
+    );
+  });
+
   return (
     <div
       style={{
@@ -191,7 +205,23 @@ export default function PortList() {
       }}
     >
       <h2>Ports</h2>
-      {displayedPorts.map((i) => {
+       <ToastContainer position="top-right"/>
+      {/* Search Bar */}
+      <input
+        type="text"
+        placeholder="Search by device name, description, alias..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        style={{
+          marginBottom: "20px",
+          padding: "8px",
+          width: "100%",
+          border: "1px solid #ccc",
+          borderRadius: "4px",
+          fontSize: "16px",
+        }}
+      />
+      {filteredPorts.map((i) => {
         const key = `${i.device_id}_${i.ifIndex}`;
         const currentStatus =
           statuses[i.device_id]?.[i.ifIndex] === 1 ? "UP" : "DOWN";
