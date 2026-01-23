@@ -308,7 +308,7 @@ const popupFilteredPorts = upPorts.filter((i) => {
                 >
                   Status: {currentStatus}
                 </div>
-                <IconButton onClick={() => handleRemovePort(i)} style={{ marginLeft: "10px" }}>
+                <IconButton onClick={() => handleRemovePort(i)} style={{ marginLeft: "10px" }} disabled>
                   <CloseIcon />
                 </IconButton>
               </div>
