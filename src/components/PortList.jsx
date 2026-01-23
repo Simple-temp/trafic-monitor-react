@@ -4,6 +4,8 @@ import { io } from "socket.io-client";
 import downSoundFile from "../assets/inactive.wav";
 import upSoundFile from "../assets/active.wav";
 import { ToastContainer, toast } from 'react-toastify';
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel, Checkbox, List, ListItem, ListItemText, ListItemIcon, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 const socket = io("http://localhost:5000");
 
@@ -19,16 +21,38 @@ function speak(text) {
 export default function PortList() {
   const [interfaces, setInterfaces] = useState([]);
   const [statuses, setStatuses] = useState({});
-  const [notifications, setNotifications] = useState([]);
   const [upPorts, setUpPorts] = useState([]);
   const [downInList, setDownInList] = useState([]);
   const [animating, setAnimating] = useState({});
-  const [searchQuery, setSearchQuery] = useState(""); // Added state for search query
+  const [openAddDialog, setOpenAddDialog] = useState(false); // State for add port popup
+  const [popupSearchQuery, setPopupSearchQuery] = useState(""); // Search in popup
+  const [popupZoneFilter, setPopupZoneFilter] = useState(""); // Zone filter in popup
+  const [popupIfIndexFilter, setPopupIfIndexFilter] = useState(""); // ifIndex filter in popup
+  const [selectedPorts, setSelectedPorts] = useState([]); // Selected ports in popup
+  const [addedPorts, setAddedPorts] = useState([]); // Added ports to display
+  const [isLoaded, setIsLoaded] = useState(false); // Loading state for initial data
 
   const lastStatus = useRef({});
   const timers = useRef({});
   const downAudio = useRef(null);
   const upAudio = useRef(null);
+
+  // Load added ports from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("addedPorts");
+    if (saved) {
+      setAddedPorts(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save added ports to localStorage every 1 second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      localStorage.setItem("addedPorts", JSON.stringify(addedPorts));
+    }, 1000); // 1 second interval
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [addedPorts]);
 
   useEffect(() => {
     axios.get("http://localhost:5000/api/devices").then((res) => {
@@ -49,6 +73,7 @@ export default function PortList() {
       initialUpPorts.sort((a, b) => a.ifIndex - b.ifIndex); // Sort UP ports by ifIndex
       setStatuses(initialStatuses);
       setUpPorts(initialUpPorts);
+      setIsLoaded(true); // Set loaded after data is fetched
     });
   }, []);
 
@@ -107,8 +132,7 @@ export default function PortList() {
               // Schedule toast after 10s
               if (!timers.current[key]) {
                 timers.current[key] = setTimeout(() => {
-                  // showToast(`⚠️ ${alias} is DOWN`, "danger");
-                  toast.error(`✅ ${alias} is DOWN`)
+                  toast.error(`⚠️ ${alias} is DOWN`);
                   delete timers.current[key];
                 }, 10000); // Fixed to 10s delay
               }
@@ -142,8 +166,7 @@ export default function PortList() {
               speak(`${alias} is up`);
 
               // Show UP toast immediately
-              // showToast(`✅ ${alias} is back UP`, "success");
-              toast.success(`✅ ${alias} is back UP`)
+              toast.success(`✅ ${alias} is back UP`);
             }
           }
           lastStatus.current[key] = currentStatus;
@@ -173,148 +196,199 @@ export default function PortList() {
     });
   };
 
-  // Toast notification function
-  const showToast = (message, type) => {
-    const id = Date.now();
-    setNotifications((p) => [...p, { id, message, type }]);
-    setTimeout(() => {
-      setNotifications((p) => p.filter((n) => n.id !== id));
-    }, 5000);
-  };
-
-  // Combined list: downInList (DOWN ports at top) + upPorts (UP ports sorted)
-  const displayedPorts = [...downInList, ...upPorts];
-
-  // Filter ports based on search query (case-insensitive search on device_name, ifDescr, ifAlias)
-  const filteredPorts = displayedPorts.filter((i) => {
-    const query = searchQuery.toLowerCase();
-    return (
+  // Filter UP ports for popup (only UP status, by zone, search, and ifIndex)
+  const popupFilteredPorts = upPorts.filter((i) => {
+    const query = popupSearchQuery.toLowerCase();
+    const zoneMatch = !popupZoneFilter || i.device_option === popupZoneFilter; // Assuming device_option is available; adjust if needed
+    const ifIndexMatch = !popupIfIndexFilter || i.ifIndex.toString() === popupIfIndexFilter;
+    const searchMatch =
       i.device_name.toLowerCase().includes(query) ||
       i.ifDescr.toLowerCase().includes(query) ||
-      (i.ifAlias && i.ifAlias.toLowerCase().includes(query))
+      (i.ifAlias && i.ifAlias.toLowerCase().includes(query));
+    return zoneMatch && ifIndexMatch && searchMatch;
+  });
+
+  // Handle adding selected ports
+  const handleAddPorts = () => {
+    const newAdded = selectedPorts.filter(
+      (port) => !addedPorts.some((added) => `${added.device_id}_${added.ifIndex}` === `${port.device_id}_${port.ifIndex}`)
     );
+    setAddedPorts((prev) => [...prev, ...newAdded]);
+    setSelectedPorts([]);
+    setOpenAddDialog(false);
+    toast.success("Selected ports added successfully!");
+  };
+
+  // Handle removing a port with confirmation
+  const handleRemovePort = (port) => {
+    if (window.confirm(`Are you sure you want to remove the port: ${port.device_name} : ${port.ifDescr}?`)) {
+      setAddedPorts((prev) =>
+        prev.filter((p) => `${p.device_id}_${p.ifIndex}` !== `${port.device_id}_${port.ifIndex}`)
+      );
+      toast.info(`Port ${port.device_name} : ${port.ifDescr} removed`);
+    }
+  };
+
+  // Handle checkbox change in popup
+  const handleCheckboxChange = (port) => {
+    const key = `${port.device_id}_${port.ifIndex}`;
+    setSelectedPorts((prev) =>
+      prev.some((p) => `${p.device_id}_${p.ifIndex}` === key)
+        ? prev.filter((p) => `${p.device_id}_${p.ifIndex}` !== key)
+        : [...prev, port]
+    );
+  };
+
+  // Sort addedPorts: DOWN ports first, then UP ports
+  const sortedAddedPorts = [...addedPorts].sort((a, b) => {
+    const statusA = statuses[a.device_id]?.[a.ifIndex] === 1 ? "UP" : "DOWN";
+    const statusB = statuses[b.device_id]?.[b.ifIndex] === 1 ? "UP" : "DOWN";
+    if (statusA === "DOWN" && statusB !== "DOWN") return -1;
+    if (statusA !== "DOWN" && statusB === "DOWN") return 1;
+    return 0; // Keep original order for same status
   });
 
   return (
     <div
       style={{
         height: "100vh",
-        width: "100vw",
+        // width: "100vw",
         padding: "20px",
         overflowY: "auto",
       }}
     >
-      <h2>Ports</h2>
-       <ToastContainer position="top-right"/>
-      {/* Search Bar */}
-      <input
-        type="text"
-        placeholder="Search by device name, description, alias..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{
-          marginBottom: "20px",
-          padding: "8px",
-          width: "100%",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          fontSize: "16px",
-        }}
-      />
-      {filteredPorts.map((i) => {
-        const key = `${i.device_id}_${i.ifIndex}`;
-        const currentStatus =
-          statuses[i.device_id]?.[i.ifIndex] === 1 ? "UP" : "DOWN";
-        const isAnimating = animating[key];
-        return (
-          <div
-            key={key}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 16px",
-              border: "1px solid #e0e0e0",
-              borderRadius: "8px",
-              backgroundColor: currentStatus === "UP" ? "#f0f8f0" : "#fff5f5",
-              marginBottom: "8px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              animation: isAnimating
-                ? isAnimating === "up"
-                  ? "jumpUp 1s ease-out"
-                  : "jumpDown 1s ease-out"
-                : "none",
-            }}
-          >
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
-            >
-              <div
-                style={{ fontWeight: "bold", fontSize: "16px", color: "#333", display:"flex" }}
-              >
-                {i.device_name} : 
-                              <div style={{ fontSize: "14px", color: "#666", display:"flex", marginLeft:5 }}>
-                {i.ifDescr}
-                <div style={{ fontSize: "14px", color: "#666", marginLeft:5 }}>
-                  {i.ifAlias}
-                </div>
-              </div>
-              </div>
-            </div>
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: "bold",
-                padding: "4px 8px",
-                borderRadius: "4px",
-                backgroundColor: currentStatus === "UP" ? "#e8f5e8" : "#ffebee",
-                color: currentStatus === "UP" ? "#4CAF50" : "#F44336",
-              }}
-            >
-              Status: {currentStatus}
-            </div>
-          </div>
-        );
-      })}
+      <ToastContainer position="top-right" />
 
-      {/* TOASTS */}
-      <div
-        style={{
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px",
-          zIndex: 9999,
+      {/* Add Port Button in Top Right */}
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => setOpenAddDialog(true)}
+        style={{ position: "absolute", top: "20px", right: "20px" }}
+      >
+        Add Port
+      </Button>
+
+      {/* Added Ports Section - Only show when loaded and there are added ports */}
+      {isLoaded && addedPorts.length > 0 && (
+        <div style={{ marginBottom: "20px" }}>
+          <h3>Added Ports</h3>
+          {sortedAddedPorts.map((i) => {
+            const key = `${i.device_id}_${i.ifIndex}`;
+            const currentStatus = statuses[i.device_id]?.[i.ifIndex] === 1 ? "UP" : "DOWN";
+            return (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  backgroundColor: currentStatus === "UP" ? "#f0f8f0" : "#fff5f5",
+                  marginBottom: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                <div style={{ fontWeight: "bold", fontSize: "16px", color: "#333", flex: 1 }}>
+                  {i.device_name} : {i.ifDescr} {i.ifAlias && `(${i.ifAlias})`}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    backgroundColor: currentStatus === "UP" ? "#e8f5e8" : "#ffebee",
+                    color: currentStatus === "UP" ? "#4CAF50" : "#F44336",
+                  }}
+                >
+                  Status: {currentStatus}
+                </div>
+                <IconButton onClick={() => handleRemovePort(i)} style={{ marginLeft: "10px" }}>
+                  <CloseIcon />
+                </IconButton>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add Port Dialog (Popup) */}
+      <Dialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        maxWidth={false} // Allow custom width
+        PaperProps={{
+          style: { width: '1200px', height: '900px' }, // Adjusted width for usability
         }}
       >
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            style={{
-              padding: "14px 18px",
-              borderRadius: "8px",
-              color: "#fff",
-              fontWeight: "600",
-              boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
-              minWidth: "300px",
-              background:
-                n.type === "danger"
-                  ? "linear-gradient(135deg, #dc2626, #b91c1c)"
-                  : "linear-gradient(135deg, #16a34a, #15803d)",
-              animation: "slideInRight 0.5s ease-out",
-            }}
-          >
-            {n.message}
+        <DialogTitle>Add Ports</DialogTitle>
+        <DialogContent>
+          {/* Filters at Left Top */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <FormControl variant="outlined" size="small" style={{ minWidth: '80px' }}>
+              <InputLabel>Zone</InputLabel>
+              <Select
+                value={popupZoneFilter}
+                onChange={(e) => setPopupZoneFilter(e.target.value)}
+                label="Zone"
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="DHK">DHK</MenuItem>
+                <MenuItem value="NHK">NHK</MenuItem>
+                <MenuItem value="CTG">CTG</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Search"
+              variant="outlined"
+              size="small"
+              value={popupSearchQuery}
+              onChange={(e) => setPopupSearchQuery(e.target.value)}
+              style={{ minWidth: '80px' }}
+            />
+            <TextField
+              label="Filter by ifIndex"
+              variant="outlined"
+              size="small"
+              value={popupIfIndexFilter}
+              onChange={(e) => setPopupIfIndexFilter(e.target.value)}
+              style={{ minWidth: '80px' }}
+            />
           </div>
-        ))}
-      </div>
+
+          {/* List of UP Ports with Checkboxes */}
+          <List style={{ maxHeight: '700px', overflowY: 'auto' }}>
+            {popupFilteredPorts.map((port) => {
+              const key = `${port.device_id}_${port.ifIndex}`;
+              const isSelected = selectedPorts.some((p) => `${p.device_id}_${p.ifIndex}` === key);
+              return (
+                <ListItem key={key} button onClick={() => handleCheckboxChange(port)}>
+                  <ListItemIcon>
+                    <Checkbox checked={isSelected} />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={
+                      <span>
+                        {port.device_name} : {port.ifDescr} {port.ifAlias ? `(${port.ifAlias})` : ''} 
+                        <strong style={{ color: '#4CAF50' }}> (UP)</strong>
+                      </span>
+                    } 
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+        </DialogContent>
+        <DialogActions style={{ justifyContent: 'flex-end' }}>
+          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddPorts} variant="contained" color="primary">
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* AUDIO */}
       <audio ref={downAudio} src={downSoundFile} preload="auto" />

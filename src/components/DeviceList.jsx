@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel, Box, Typography } from "@mui/material";
 import downSoundFile from "../assets/inactive.wav";
 import upSoundFile from "../assets/active.wav";
 
@@ -18,6 +19,10 @@ const DeviceList = () => {
   const [downDevices, setDownDevices] = useState([]);
   const [upDevices, setUpDevices] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [openAddDialog, setOpenAddDialog] = useState(false); // State for add device popup
+  const [newDevice, setNewDevice] = useState({ hostname: "", ip_address: "", snmp_community: "", options: "" }); // Form state
+  const [filterZone, setFilterZone] = useState(""); // Filter by zone
+  const [filterIP, setFilterIP] = useState(""); // Filter by IP
 
   const prevStatusRef = useRef({});
   const downTimersRef = useRef({});
@@ -135,21 +140,78 @@ const DeviceList = () => {
     return <DefaultIcon />;
   };
 
-  /* -------------------- DISPLAYED DEVICES -------------------- */
-  const displayedDevices = [...downDevices, ...upDevices];
+  /* -------------------- ADD DEVICE HANDLER -------------------- */
+  const handleAddDevice = async () => {
+    if (!newDevice.hostname || !newDevice.ip_address || !newDevice.snmp_community) {
+      showToast("Please fill in all required fields.", "danger");
+      return;
+    }
+
+    try {
+      await axios.post(API_URL, newDevice);
+      showToast("Device added successfully!", "success");
+      setOpenAddDialog(false);
+      setNewDevice({ hostname: "", ip_address: "", snmp_community: "", options: "" });
+      fetchDevices(); // Refresh the list
+    } catch (err) {
+      console.error("Error adding device:", err);
+      showToast(err.response?.data?.error || "Failed to add device.", "danger");
+    }
+  };
+
+  /* -------------------- FILTER DEVICES -------------------- */
+  const filteredDevices = [...downDevices, ...upDevices].filter((device) => {
+    const matchesZone = !filterZone || device.options === filterZone;
+    const matchesIP = !filterIP || device.ip_address.toLowerCase().includes(filterIP.toLowerCase());
+    return matchesZone && matchesIP;
+  });
 
   /* -------------------- UI -------------------- */
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>📡 Network Device Monitoring Dashboard</h1>
-        <p style={styles.subtitle}>Real-time status tracking with automatic alerts</p>
+        {/* <h1 style={styles.title}>📡 Network Device Monitoring Dashboard</h1>
+        <p style={styles.subtitle}>Real-time status tracking with automatic alerts</p> */}
+        {/* Add Device Button in Top Right */}
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setOpenAddDialog(true)}
+          style={styles.addButton}
+        >
+          Add Device
+        </Button>
       </header>
 
       <div style={styles.monitoringIndicator}>
         <span style={styles.indicatorDot}></span>
         Monitoring Active (Automatic)
       </div>
+
+      {/* Filter Section Below Left Corner */}
+      <Box style={styles.filterContainer}>
+        <FormControl variant="outlined" size="small" style={styles.filterItem}>
+          <InputLabel>Zone</InputLabel>
+          <Select
+            value={filterZone}
+            onChange={(e) => setFilterZone(e.target.value)}
+            label="Zone"
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="DHK">DHK</MenuItem>
+            <MenuItem value="NHK">NHK</MenuItem>
+            <MenuItem value="CTG">CTG</MenuItem>
+          </Select>
+        </FormControl>
+        <TextField
+          label="Search by IP"
+          variant="outlined"
+          size="small"
+          value={filterIP}
+          onChange={(e) => setFilterIP(e.target.value)}
+          style={styles.filterItem}
+        />
+      </Box>
 
       {/* Table-like layout for Zabbix-style rows */}
       <div style={styles.tableContainer}>
@@ -158,8 +220,9 @@ const DeviceList = () => {
           <div style={styles.headerCell}>IP Address</div>
           <div style={styles.headerCell}>Status</div>
           <div style={styles.headerCell}>Type</div>
+          <div style={styles.headerCell}>Zone</div> {/* Added Zone column */}
         </div>
-        {displayedDevices.map((d) => (
+        {filteredDevices.map((d) => (
           <div
             key={d.id}
             style={{
@@ -169,7 +232,7 @@ const DeviceList = () => {
             }}
           >
             <div style={styles.cell}>{d.hostname}</div>
-            <div style={styles.cell}>{d.ip_address || "N/A"}</div> {/* Assuming IP is in data; adjust if needed */}
+            <div style={styles.cell}>{d.ip_address || "N/A"}</div>
             <div
               style={{
                 ...styles.cell,
@@ -180,9 +243,63 @@ const DeviceList = () => {
               {d.status}
             </div>
             <div style={styles.cell}>{getDeviceIcon(d.hostname)}</div>
+            <div style={styles.cell}>{d.options || "N/A"}</div> {/* Display Zone */}
           </div>
         ))}
       </div>
+
+      {/* Add Device Dialog (Popup) */}
+      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Device</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Device Name (Hostname)"
+            fullWidth
+            variant="outlined"
+            value={newDevice.hostname}
+            onChange={(e) => setNewDevice({ ...newDevice, hostname: e.target.value })}
+            required
+          />
+          <TextField
+            margin="dense"
+            label="IP Address"
+            fullWidth
+            variant="outlined"
+            value={newDevice.ip_address}
+            onChange={(e) => setNewDevice({ ...newDevice, ip_address: e.target.value })}
+            required
+          />
+          <TextField
+            margin="dense"
+            label="SNMP Community"
+            fullWidth
+            variant="outlined"
+            value={newDevice.snmp_community}
+            onChange={(e) => setNewDevice({ ...newDevice, snmp_community: e.target.value })}
+            required
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Zone</InputLabel>
+            <Select
+              value={newDevice.options}
+              onChange={(e) => setNewDevice({ ...newDevice, options: e.target.value })}
+              label="Zone"
+            >
+              <MenuItem value="DHK">DHK</MenuItem>
+              <MenuItem value="NHK">NHK</MenuItem>
+              <MenuItem value="CTG">CTG</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions style={{ justifyContent: 'flex-end' }}>
+          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddDevice} variant="contained" color="primary">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* TOASTS */}
       <div style={styles.toastWrap}>
@@ -219,6 +336,7 @@ const styles = {
   header: {
     textAlign: "center",
     marginBottom: "30px",
+    position: "relative", // For positioning the add button
   },
   title: {
     fontSize: "2.5rem",
@@ -230,6 +348,11 @@ const styles = {
     fontSize: "1.1rem",
     color: "#64748b",
     margin: "0",
+  },
+  addButton: {
+    position: "absolute",
+    top: 0,
+    right: 0,
   },
   monitoringIndicator: {
     display: "flex",
@@ -248,8 +371,17 @@ const styles = {
     marginRight: "8px",
     animation: "pulse 2s infinite",
   },
+  filterContainer: {
+    display: "flex",
+    gap: "20px",
+    marginBottom: "20px",
+    alignItems: "center",
+  },
+  filterItem: {
+    minWidth: "150px",
+  },
   tableContainer: {
-    width: "100%", // Increased width to full width
+    width: "100%",
     margin: "0 auto",
     border: "1px solid #e2e8f0",
     borderRadius: "8px",
