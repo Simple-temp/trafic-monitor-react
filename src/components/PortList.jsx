@@ -197,16 +197,17 @@ export default function PortList() {
   };
 
   // Filter UP ports for popup (only UP status, by zone, search, and ifIndex)
-  const popupFilteredPorts = upPorts.filter((i) => {
-    const query = popupSearchQuery.toLowerCase();
-    const zoneMatch = !popupZoneFilter || i.device_option === popupZoneFilter; // Assuming device_option is available; adjust if needed
-    const ifIndexMatch = !popupIfIndexFilter || i.ifIndex.toString() === popupIfIndexFilter;
-    const searchMatch =
-      i.device_name.toLowerCase().includes(query) ||
-      i.ifDescr.toLowerCase().includes(query) ||
-      (i.ifAlias && i.ifAlias.toLowerCase().includes(query));
-    return zoneMatch && ifIndexMatch && searchMatch;
-  });
+const popupFilteredPorts = upPorts.filter((i) => {
+  const query = popupSearchQuery.toLowerCase();
+  const zoneMatch = !popupZoneFilter || i.options === popupZoneFilter; // Changed from i.device_option to i.option
+  console.log(zoneMatch)
+  const ifIndexMatch = !popupIfIndexFilter || i.ifIndex.toString() === popupIfIndexFilter;
+  const searchMatch =
+    i.device_name.toLowerCase().includes(query) ||
+    i.ifDescr.toLowerCase().includes(query) ||
+    (i.ifAlias && i.ifAlias.toLowerCase().includes(query));
+  return zoneMatch && ifIndexMatch && searchMatch;
+});
 
   // Handle adding selected ports
   const handleAddPorts = () => {
@@ -264,7 +265,8 @@ export default function PortList() {
         variant="contained"
         color="primary"
         onClick={() => setOpenAddDialog(true)}
-        style={{ position: "absolute", top: "20px", right: "20px" }}
+        style={{ position: "absolute", top: "20px", right: "20px",     backgroundColor :"#b50000",
+    color: "#fff",}}
       >
         Add Port
       </Button>
@@ -329,16 +331,16 @@ export default function PortList() {
           {/* Filters at Left Top */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <FormControl variant="outlined" size="small" style={{ minWidth: '80px' }}>
-              <InputLabel>Zone</InputLabel>
+              <InputLabel>All</InputLabel>
               <Select
                 value={popupZoneFilter}
                 onChange={(e) => setPopupZoneFilter(e.target.value)}
-                label="Zone"
+                label="All"
               >
-                <MenuItem value="">All</MenuItem>
-                <MenuItem value="DHK">DHK</MenuItem>
+                <MenuItem value=""></MenuItem>
+                {/* <MenuItem value="DHK">DHK</MenuItem>
                 <MenuItem value="NHK">NHK</MenuItem>
-                <MenuItem value="CTG">CTG</MenuItem>
+                <MenuItem value="CTG">CTG</MenuItem> */}
               </Select>
             </FormControl>
             <TextField
@@ -384,7 +386,8 @@ export default function PortList() {
         </DialogContent>
         <DialogActions style={{ justifyContent: 'flex-end' }}>
           <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddPorts} variant="contained" color="primary">
+          <Button onClick={handleAddPorts} variant="contained" color="primary" style={{    backgroundColor :"#b50000",
+    color: "#fff",}}>
             Add
           </Button>
         </DialogActions>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel, Box, Typography } from "@mui/material";
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel, Box, Typography, badgeClasses } from "@mui/material";
 import downSoundFile from "../assets/inactive.wav";
 import upSoundFile from "../assets/active.wav";
 
@@ -295,7 +295,8 @@ const DeviceList = () => {
         </DialogContent>
         <DialogActions style={{ justifyContent: 'flex-end' }}>
           <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddDevice} variant="contained" color="primary">
+          <Button onClick={handleAddDevice} variant="contained" color="primary" style={{    backgroundColor :"#b50000",
+    color: "#fff",}}>
             Save
           </Button>
         </DialogActions>
@@ -353,6 +354,8 @@ const styles = {
     position: "absolute",
     top: 0,
     right: 0,
+    backgroundColor :"#b50000",
+    color: "#fff",
   },
   monitoringIndicator: {
     display: "flex",
