@@ -1,426 +1,359 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { io } from "socket.io-client";
+import {
+  TextField,
+  InputAdornment,
+  Tabs,
+  Tab,
+  Box,
+  Typography,
+  Paper,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import HistoryIcon from "@mui/icons-material/History";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import ListIcon from "@mui/icons-material/List";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+// Assets
 import downSoundFile from "../assets/inactive.wav";
 import upSoundFile from "../assets/active.wav";
-import { ToastContainer, toast } from 'react-toastify';
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel, Checkbox, List, ListItem, ListItemText, ListItemIcon, IconButton } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-
-const socket = io("http://localhost:5000");
 
 function speak(text) {
-  if (!window.speechSynthesis) return;
-  const msg = new SpeechSynthesisUtterance(text);
-  msg.rate = 0.95;
-  msg.pitch = 1;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(msg);
+  //if (!window.speechSynthesis) return;
+  //const msg = new SpeechSynthesisUtterance(text);
+  //msg.rate = 0.95;
+  //window.speechSynthesis.cancel();
+  //window.speechSynthesis.speak(msg);
 }
 
 export default function PortList() {
   const [interfaces, setInterfaces] = useState([]);
-  const [statuses, setStatuses] = useState({});
-  const [upPorts, setUpPorts] = useState([]);
-  const [downInList, setDownInList] = useState([]);
-  const [animating, setAnimating] = useState({});
-  const [openAddDialog, setOpenAddDialog] = useState(false); // State for add port popup
-  const [popupSearchQuery, setPopupSearchQuery] = useState(""); // Search in popup
-  const [popupZoneFilter, setPopupZoneFilter] = useState(""); // Zone filter in popup
-  const [popupIfIndexFilter, setPopupIfIndexFilter] = useState(""); // ifIndex filter in popup
-  const [selectedPorts, setSelectedPorts] = useState([]); // Selected ports in popup
-  const [addedPorts, setAddedPorts] = useState([]); // Added ports to display
-  const [isLoaded, setIsLoaded] = useState(false); // Loading state for initial data
+  const [logs, setLogs] = useState([]);
+  // Initialize failed ports from LocalStorage
+  const [failedPorts, setFailedPorts] = useState(() => {
+    const saved = localStorage.getItem("failed_ports_list");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [tabValue, setTabValue] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const lastStatus = useRef({});
-  const timers = useRef({});
+  const initialLoadDone = useRef(false);
   const downAudio = useRef(null);
   const upAudio = useRef(null);
 
-  // Load added ports from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("addedPorts");
-    if (saved) {
-      setAddedPorts(JSON.parse(saved));
+  const playAudio = (audioRef) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
     }
-  }, []);
+  };
 
-  // Save added ports to localStorage every 1 second
+  // Sync failedPorts to LocalStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("failed_ports_list", JSON.stringify(failedPorts));
+  }, [failedPorts]);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      localStorage.setItem("addedPorts", JSON.stringify(addedPorts));
-    }, 1000); // 1 second interval
+      axios
+        .get("http://localhost:5000/api/devices")
+        .then((res) => {
+          const allowedPrefixes = [
+            "ae",
+            "et",
+            "lt",
+            "xe",
+            "10GE",
+            "20GE",
+            "30GE",
+            "40GE",
+            "25GE",
+            "100GE",
+            "Giga",
+            "Ethernet",
+          ];
 
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, [addedPorts]);
+          const fetchedInterfaces = res.data.interfaces.filter((iface) => {
+            const matchesPrefix =
+              iface.ifDescr &&
+              allowedPrefixes.some((p) => iface.ifDescr.startsWith(p));
+            const hasAlias = iface.ifAlias && iface.ifAlias.trim().length > 0;
+            return matchesPrefix && hasAlias;
+          });
 
-  useEffect(() => {
-    axios.get("http://localhost:5000/api/devices").then((res) => {
-      console.log(res.data);
-      setInterfaces(res.data.interfaces);
-      const initialStatuses = {};
-      const initialUpPorts = [];
-      res.data.interfaces.forEach((iface) => {
-        if (!initialStatuses[iface.device_id])
-          initialStatuses[iface.device_id] = {};
-        initialStatuses[iface.device_id][iface.ifIndex] = iface.ifOperStatus;
-        const key = `${iface.device_id}_${iface.ifIndex}`;
-        lastStatus.current[key] = iface.ifOperStatus === 1 ? "UP" : "DOWN";
-        if (iface.ifOperStatus === 1) {
-          initialUpPorts.push(iface);
-        }
-      });
-      initialUpPorts.sort((a, b) => a.ifIndex - b.ifIndex); // Sort UP ports by ifIndex
-      setStatuses(initialStatuses);
-      setUpPorts(initialUpPorts);
-      setIsLoaded(true); // Set loaded after data is fetched
-    });
+          const newLogs = [];
+
+          fetchedInterfaces.forEach((iface) => {
+            const key = `${iface.device_id}_${iface.ifIndex}`;
+            const currentStatus = iface.ifOperStatus === 1 ? "UP" : "DOWN";
+            const previousStatus = lastStatus.current[key];
+
+            if (
+              initialLoadDone.current &&
+              previousStatus !== undefined &&
+              previousStatus !== currentStatus
+            ) {
+              const alias = iface.ifAlias || iface.ifDescr || key;
+
+              newLogs.push({
+                id: Date.now() + Math.random(),
+                device: iface.device_name,
+                alias: alias,
+                from: previousStatus,
+                to: currentStatus,
+                time: new Date(),
+              });
+
+              if (currentStatus === "DOWN") {
+                // Add to persistent failed list
+                setFailedPorts((prev) => [...new Set([...prev, key])]);
+                playAudio(downAudio);
+                speak(`Alert! ${alias} is down`);
+                toast.error(`? ${alias} is DOWN`);
+              } else {
+                // Remove from persistent failed list
+                setFailedPorts((prev) => prev.filter((item) => item !== key));
+                playAudio(upAudio);
+                speak(`${alias} is up`);
+                toast.success(`? ${alias} is back UP`);
+              }
+            }
+            lastStatus.current[key] = currentStatus;
+          });
+
+          if (newLogs.length > 0) setLogs((prev) => [...newLogs, ...prev]);
+          if (!initialLoadDone.current) initialLoadDone.current = true;
+          setInterfaces(fetchedInterfaces);
+          setIsLoaded(true);
+        })
+        .catch((err) => console.error("Polling error:", err));
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const handleTraffic = (data) => {
-      const newStatuses = { ...statuses };
-      let hasChanges = false;
-      Object.entries(data).forEach(([devId, ifs]) => {
-        if (!newStatuses[devId]) newStatuses[devId] = {};
-        Object.entries(ifs).forEach(([ifIndex, v]) => {
-          if (
-            v.status !== undefined &&
-            newStatuses[devId][ifIndex] !== v.status
-          ) {
-            newStatuses[devId][ifIndex] = v.status;
-            hasChanges = true;
-          }
-        });
-      });
-      if (hasChanges) setStatuses({ ...newStatuses });
-
-      // Alarm logic for all interfaces - immediate audio, delayed toast for DOWN, immediate for UP
-      Object.entries(data).forEach(([devId, ifs]) => {
-        Object.entries(ifs).forEach(([ifIndex, v]) => {
-          const key = `${devId}_${ifIndex}`;
-          // Find the interface to get ifAlias (fixed type comparison and variable name)
-          const iface = interfaces.find(
-            (i) =>
-              i.device_id === parseInt(devId) && i.ifIndex === parseInt(ifIndex)
-          );
-          const alias = iface && iface.ifAlias ? iface.ifAlias : key; // Fallback to key if ifAlias is not available
-
-          const currentStatus = v.status === 1 ? "UP" : "DOWN";
-          const prevStatus = lastStatus.current[key];
-
-          if (prevStatus && prevStatus !== currentStatus) {
-            if (currentStatus === "DOWN") {
-              // Add to downInList at the top, remove from upPorts if present
-              setDownInList((prev) => [
-                iface,
-                ...prev.filter((i) => `${i.device_id}_${i.ifIndex}` !== key),
-              ]);
-              setUpPorts((prev) =>
-                prev.filter((i) => `${i.device_id}_${i.ifIndex}` !== key)
-              );
-              setAnimating((prev) => ({ ...prev, [key]: "down" }));
-              setTimeout(
-                () => setAnimating((prev) => ({ ...prev, [key]: null })),
-                1000
-              );
-
-              // Play DOWN audio immediately
-              playAudio(downAudio);
-              speak(`Alert! ${alias} is down`);
-
-              // Schedule toast after 10s
-              if (!timers.current[key]) {
-                timers.current[key] = setTimeout(() => {
-                  toast.error(`⚠️ ${alias} is DOWN`);
-                  delete timers.current[key];
-                }, 10000); // Fixed to 10s delay
-              }
-            } else if (currentStatus === "UP") {
-              // Remove from downInList, add to upPorts in sorted position
-              setDownInList((prev) =>
-                prev.filter((i) => `${i.device_id}_${i.ifIndex}` !== key)
-              );
-              setUpPorts((prev) => {
-                const newUp = [
-                  ...prev.filter((i) => `${i.device_id}_${i.ifIndex}` !== key),
-                  iface,
-                ];
-                newUp.sort((a, b) => a.ifIndex - b.ifIndex);
-                return newUp;
-              });
-              setAnimating((prev) => ({ ...prev, [key]: "up" }));
-              setTimeout(
-                () => setAnimating((prev) => ({ ...prev, [key]: null })),
-                1000
-              );
-
-              // Clear any pending DOWN toast
-              if (timers.current[key]) {
-                clearTimeout(timers.current[key]);
-                delete timers.current[key];
-              }
-
-              // Play UP audio immediately
-              playAudio(upAudio);
-              speak(`${alias} is up`);
-
-              // Show UP toast immediately
-              toast.success(`✅ ${alias} is back UP`);
-            }
-          }
-          lastStatus.current[key] = currentStatus;
-        });
-      });
-    };
-
-    socket.on("traffic", handleTraffic);
-    return () => {
-      socket.off("traffic", handleTraffic);
-      Object.values(timers.current).forEach(clearTimeout);
-      timers.current = {};
-    };
-  }, [interfaces, statuses]);
-
-  // Audio control function (added debug logs)
-  const playAudio = (audioRef) => {
-    if (!audioRef.current) {
-      console.log("Audio ref not ready");
-      return;
-    }
-    console.log("Playing audio:", audioRef.current.src);
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().catch((err) => {
-      console.error("Audio play failed:", err);
-    });
-  };
-
-  // Filter UP ports for popup (only UP status, by zone, search, and ifIndex)
-const popupFilteredPorts = upPorts.filter((i) => {
-  const query = popupSearchQuery.toLowerCase();
-  const zoneMatch = !popupZoneFilter || i.options === popupZoneFilter; // Changed from i.device_option to i.option
-  console.log(zoneMatch)
-  const ifIndexMatch = !popupIfIndexFilter || i.ifIndex.toString() === popupIfIndexFilter;
-  const searchMatch =
-    i.device_name.toLowerCase().includes(query) ||
-    i.ifDescr.toLowerCase().includes(query) ||
-    (i.ifAlias && i.ifAlias.toLowerCase().includes(query));
-  return zoneMatch && ifIndexMatch && searchMatch;
-});
-
-  // Handle adding selected ports
-  const handleAddPorts = () => {
-    const newAdded = selectedPorts.filter(
-      (port) => !addedPorts.some((added) => `${added.device_id}_${added.ifIndex}` === `${port.device_id}_${port.ifIndex}`)
-    );
-    setAddedPorts((prev) => [...prev, ...newAdded]);
-    setSelectedPorts([]);
-    setOpenAddDialog(false);
-    toast.success("Selected ports added successfully!");
-  };
-
-  // Handle removing a port with confirmation
-  const handleRemovePort = (port) => {
-    if (window.confirm(`Are you sure you want to remove the port: ${port.device_name} : ${port.ifDescr}?`)) {
-      setAddedPorts((prev) =>
-        prev.filter((p) => `${p.device_id}_${p.ifIndex}` !== `${port.device_id}_${port.ifIndex}`)
-      );
-      toast.info(`Port ${port.device_name} : ${port.ifDescr} removed`);
-    }
-  };
-
-  // Handle checkbox change in popup
-  const handleCheckboxChange = (port) => {
-    const key = `${port.device_id}_${port.ifIndex}`;
-    setSelectedPorts((prev) =>
-      prev.some((p) => `${p.device_id}_${p.ifIndex}` === key)
-        ? prev.filter((p) => `${p.device_id}_${p.ifIndex}` !== key)
-        : [...prev, port]
+  const searchFilter = (i) => {
+    const s = globalSearch.toLowerCase();
+    return (
+      i.device_name?.toLowerCase().includes(s) ||
+      i.ifDescr?.toLowerCase().includes(s) ||
+      i.ifAlias?.toLowerCase().includes(s)
     );
   };
 
-  // Sort addedPorts: DOWN ports first, then UP ports
-  const sortedAddedPorts = [...addedPorts].sort((a, b) => {
-    const statusA = statuses[a.device_id]?.[a.ifIndex] === 1 ? "UP" : "DOWN";
-    const statusB = statuses[b.device_id]?.[b.ifIndex] === 1 ? "UP" : "DOWN";
-    if (statusA === "DOWN" && statusB !== "DOWN") return -1;
-    if (statusA !== "DOWN" && statusB === "DOWN") return 1;
-    return 0; // Keep original order for same status
+  // --- Filter Logic ---
+
+  // 1. DOWN LIST: Only ports that exist in our 'failedPorts' (LocalStorage) list
+  const downListItems = interfaces.filter((i) => {
+    const key = `${i.device_id}_${i.ifIndex}`;
+    return failedPorts.includes(key) && i.ifOperStatus !== 1 && searchFilter(i);
   });
+
+  // 2. UP LIST: Only active ports
+  const upPorts = interfaces.filter(
+    (i) => i.ifOperStatus === 1 && searchFilter(i),
+  );
+
+  // 3. LOGS: Last 10 mins
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+  const recentLogs = logs.filter((log) => log.time > tenMinutesAgo);
+
+  // 4. NOT IN USE: All ports currently down in the system
+  const allDownPorts = interfaces.filter(
+    (i) => i.ifOperStatus !== 1 && searchFilter(i),
+  );
 
   return (
     <div
       style={{
-        height: "100vh",
-        // width: "100vw",
+        minHeight: "100vh",
         padding: "20px",
-        overflowY: "auto",
+        backgroundColor: "#f1f5f9",
       }}
     >
-      <ToastContainer position="top-right" />
+      <ToastContainer position="top-right" autoClose={3000} />
 
-      {/* Add Port Button in Top Right */}
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={() => setOpenAddDialog(true)}
-        style={{ position: "absolute", top: "20px", right: "20px",     backgroundColor :"#b50000",
-    color: "#fff",}}
-      >
-        Add Port
-      </Button>
-
-      {/* Added Ports Section - Only show when loaded and there are added ports */}
-      {isLoaded && addedPorts.length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>Added Ports</h3>
-          {sortedAddedPorts.map((i) => {
-            const key = `${i.device_id}_${i.ifIndex}`;
-            const currentStatus = statuses[i.device_id]?.[i.ifIndex] === 1 ? "UP" : "DOWN";
-            return (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "8px",
-                  backgroundColor: currentStatus === "UP" ? "#f0f8f0" : "#fff5f5",
-                  marginBottom: "8px",
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                }}
-              >
-                <div style={{ fontWeight: "bold", fontSize: "16px", color: "#333", flex: 1 }}>
-                  {i.device_name} : {i.ifDescr} {i.ifAlias && `(${i.ifAlias})`}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    backgroundColor: currentStatus === "UP" ? "#e8f5e8" : "#ffebee",
-                    color: currentStatus === "UP" ? "#4CAF50" : "#F44336",
-                  }}
-                >
-                  Status: {currentStatus}
-                </div>
-                <IconButton onClick={() => handleRemovePort(i)} style={{ marginLeft: "10px" }} disabled>
-                  <CloseIcon />
-                </IconButton>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add Port Dialog (Popup) */}
-      <Dialog
-        open={openAddDialog}
-        onClose={() => setOpenAddDialog(false)}
-        maxWidth={false} // Allow custom width
-        PaperProps={{
-          style: { width: '1200px', height: '900px' }, // Adjusted width for usability
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
         }}
       >
-        <DialogTitle>Add Ports</DialogTitle>
-        <DialogContent>
-          {/* Filters at Left Top */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            <FormControl variant="outlined" size="small" style={{ minWidth: '80px' }}>
-              <InputLabel>All</InputLabel>
-              <Select
-                value={popupZoneFilter}
-                onChange={(e) => setPopupZoneFilter(e.target.value)}
-                label="All"
-              >
-                <MenuItem value=""></MenuItem>
-                {/* <MenuItem value="DHK">DHK</MenuItem>
-                <MenuItem value="NHK">NHK</MenuItem>
-                <MenuItem value="CTG">CTG</MenuItem> */}
-              </Select>
-            </FormControl>
-            <TextField
-              label="Search"
-              variant="outlined"
-              size="small"
-              value={popupSearchQuery}
-              onChange={(e) => setPopupSearchQuery(e.target.value)}
-              style={{ minWidth: '80px' }}
+        <Typography variant="h5" fontWeight="900" color="#334155">
+          PORT MONITOR
+        </Typography>
+        <TextField
+          placeholder="Search ports..."
+          size="small"
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          sx={{ width: "350px", bgcolor: "#fff", borderRadius: 1 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </div>
+
+      <Tabs
+        value={tabValue}
+        onChange={(e, v) => setTabValue(v)}
+        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
+        TabIndicatorProps={{
+          style: {
+            background:
+              tabValue === 0
+                ? "#d32f2f"
+                : tabValue === 1
+                  ? "#388e3c"
+                  : "#0288d1",
+          },
+        }}
+      >
+        <Tab
+          icon={<ReportProblemIcon sx={{ fontSize: 18 }} />}
+          iconPosition="start"
+          label={`DOWN LIST (${downListItems.length})`}
+          sx={{
+            color: tabValue === 0 ? "#d32f2f" : "inherit",
+            fontWeight: "bold",
+          }}
+        />
+        <Tab
+          label={`UP LIST (${upPorts.length})`}
+          sx={{
+            color: tabValue === 1 ? "#388e3c" : "inherit",
+            fontWeight: "bold",
+          }}
+        />
+        <Tab
+          icon={<HistoryIcon sx={{ fontSize: 18 }} />}
+          iconPosition="start"
+          label={`LOGS (${recentLogs.length})`}
+        />
+        <Tab
+          icon={<ListIcon sx={{ fontSize: 18 }} />}
+          iconPosition="start"
+          label={`NOT IN USE (${allDownPorts.length})`}
+        />
+      </Tabs>
+
+      {/* Grid Display */}
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+        {tabValue === 0 &&
+          downListItems.map((i) => (
+            <PortBlock
+              key={`${i.device_id}_${i.ifIndex}`}
+              item={i}
+              status="DOWN"
             />
-            <TextField
-              label="Filter by ifIndex"
-              variant="outlined"
-              size="small"
-              value={popupIfIndexFilter}
-              onChange={(e) => setPopupIfIndexFilter(e.target.value)}
-              style={{ minWidth: '80px' }}
+          ))}
+        {tabValue === 1 &&
+          upPorts.map((i) => (
+            <PortBlock
+              key={`${i.device_id}_${i.ifIndex}`}
+              item={i}
+              status="UP"
             />
-          </div>
+          ))}
+        {tabValue === 3 &&
+          allDownPorts.map((i) => (
+            <PortBlock
+              key={`${i.device_id}_${i.ifIndex}`}
+              item={i}
+              status="DOWN"
+            />
+          ))}
+      </Box>
 
-          {/* List of UP Ports with Checkboxes */}
-          <List style={{ maxHeight: '700px', overflowY: 'auto' }}>
-            {popupFilteredPorts.map((port) => {
-              const key = `${port.device_id}_${port.ifIndex}`;
-              const isSelected = selectedPorts.some((p) => `${p.device_id}_${p.ifIndex}` === key);
-              return (
-                <ListItem key={key} button onClick={() => handleCheckboxChange(port)}>
-                  <ListItemIcon>
-                    <Checkbox checked={isSelected} />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={
-                      <span>
-                        {port.device_name} : {port.ifDescr} {port.ifAlias ? `(${port.ifAlias})` : ''} 
-                        <strong style={{ color: '#4CAF50' }}> (UP)</strong>
-                      </span>
-                    } 
-                  />
-                </ListItem>
-              );
-            })}
-          </List>
-        </DialogContent>
-        <DialogActions style={{ justifyContent: 'flex-end' }}>
-          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddPorts} variant="contained" color="primary" style={{    backgroundColor :"#b50000",
-    color: "#fff",}}>
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {tabValue === 2 && (
+        <Box sx={{ maxWidth: "800px" }}>
+          {recentLogs.map((log) => (
+            <Paper
+              key={log.id}
+              sx={{
+                p: 1.5,
+                mb: 1,
+                borderLeft: `5px solid ${log.to === "UP" ? "#4caf50" : "#d32f2f"}`,
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                {log.device} - {log.alias}
+              </Typography>
+              <Typography variant="caption">
+                Changed to <b>{log.to}</b> at {log.time.toLocaleTimeString()}
+              </Typography>
+            </Paper>
+          ))}
+        </Box>
+      )}
 
-      {/* AUDIO */}
-      <audio ref={downAudio} src={downSoundFile} preload="auto" />
-      <audio ref={upAudio} src={upSoundFile} preload="auto" />
-
-      <style>
-        {`
-          @keyframes slideInRight {
-            from {
-              transform: translateX(100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
-          }
-          @keyframes jumpUp {
-            0% { transform: translateY(20px); opacity: 0; }
-            50% { transform: translateY(-10px); opacity: 1; }
-            100% { transform: translateY(0); opacity: 1; }
-          }
-          @keyframes jumpDown {
-            0% { transform: translateY(-20px); opacity: 0; }
-            50% { transform: translateY(10px); opacity: 1; }
-            100% { transform: translateY(0); opacity: 1; }
-          }
-        `}
-      </style>
+      <audio ref={downAudio} src={downSoundFile} />
+      <audio ref={upAudio} src={upSoundFile} />
     </div>
+  );
+}
+
+function PortBlock({ item, status }) {
+  const isDown = status === "DOWN";
+  return (
+    <Box
+      sx={{
+        width: "290px",
+        height: "85px",
+        p: 1.5,
+        bgcolor: "#fff",
+        borderRadius: 2,
+        borderLeft: `6px solid ${isDown ? "#d32f2f" : "#4caf50"}`,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
+      <Typography
+        variant="caption"
+        fontWeight="bold"
+        color="textSecondary"
+        noWrap
+      >
+        {item.device_name}
+      </Typography>
+      <Typography
+        variant="body2"
+        fontWeight="900"
+        noWrap
+        color={isDown ? "#d32f2f" : "#2c3e50"}
+      >
+        {item.ifAlias}
+      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Typography
+          variant="caption"
+          color="textSecondary"
+          sx={{ fontSize: "10px" }}
+          noWrap
+        >
+          {item.ifDescr}
+        </Typography>
+        <Typography
+          variant="caption"
+          fontWeight="bold"
+          sx={{ color: isDown ? "#d32f2f" : "#388e3c" }}
+        >
+          {status}
+        </Typography>
+      </Box>
+    </Box>
   );
 }

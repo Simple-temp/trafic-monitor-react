@@ -1,103 +1,151 @@
-// Navbar component: Left 15%, dark black background, logo, menu items with icons, white text, hover dark red, bottom copyright
 import React from "react";
-import { Box, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
+import { useLocation, Link } from "react-router-dom";
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+} from "@mui/material";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import RouterIcon from "@mui/icons-material/Router"; // Appropriate icon for Port List
+import RouterIcon from "@mui/icons-material/Router";
 import StorageIcon from "@mui/icons-material/Storage";
-import { Link } from "react-router-dom";
+import HomeIcon from "@mui/icons-material/Home";
 
 const Navbar = () => {
+  const location = useLocation();
+
+  const menuItems = [
+    { text: "Home", icon: <HomeIcon />, path: "/" },
+    //{ text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
+    { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
+    { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
+  ];
+
   return (
     <Box
       sx={{
-        width: '15%',
-        backgroundColor: '#000', // Dark black background
-        color: '#fff', // White text
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        height: '100vh',
-        padding: '20px',
-        position: "fixed", // Keeps sidebar fixed on the left
+        width: "15%",
+        minWidth: "220px", // Prevents sidebar from getting too narrow
+        backgroundColor: "#0a0a0a", // Deep professional black
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        position: "fixed",
         top: 0,
         left: 0,
+        borderRight: "1px solid #222", // Subtle separation
+        zIndex: 1200,
       }}
     >
-      {/* Logo at the top */}
-      <Box>
-        <Typography variant="h5" sx={{ marginBottom: '20px', textAlign: 'center' }}>
-          Network Monitor {/* Replace with actual logo if needed */}
+      {/* Branding Section */}
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        {/* Placeholder for actual Logo image */}
+        <Box
+          component="div"
+          sx={{
+            width: 50,
+            height: 50,
+            backgroundColor: "#8b0000",
+            borderRadius: "12px",
+            margin: "0 auto 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.5rem",
+            fontWeight: "bold",
+            boxShadow: "0 0 15px rgba(139, 0, 0, 0.4)",
+          }}
+        >
+          N
+        </Box>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+            letterSpacing: "1px",
+            textTransform: "uppercase",
+            fontSize: "1.1rem",
+            color: "#fff",
+          }}
+        >
+          NMS TOOL
         </Typography>
-        
-        {/* Menu items */}
-        <List>
-          <ListItem disablePadding>
-            <ListItemButton
-              component={Link}
-              to="/livegraph"
-              sx={{
-                '&:hover': { backgroundColor: 'darkred' }, // Hover effect dark red
-              }}
-            >
-              <ListItemIcon sx={{ color: '#fff' }}>
-                <ShowChartIcon />
-              </ListItemIcon>
-              <ListItemText primary="Live Graph" />
-            </ListItemButton>
-          </ListItem>
-{/*           
-          <ListItem disablePadding>
-            <ListItemButton
-              component={Link}
-              to="/addDevice"
-              sx={{
-                '&:hover': { backgroundColor: 'darkred' },
-              }}
-            >
-              <ListItemIcon sx={{ color: '#fff' }}>
-                <AddCircleOutlineIcon />
-              </ListItemIcon>
-              <ListItemText primary="Add Device" />
-            </ListItemButton>
-          </ListItem> */}
-          
-          <ListItem disablePadding>
-            <ListItemButton
-              component={Link}
-              to="/portlist"
-              sx={{
-                '&:hover': { backgroundColor: 'darkred' },
-              }}
-            >
-              <ListItemIcon sx={{ color: '#fff' }}>
-                <RouterIcon /> {/* Changed to RouterIcon for Port List */}
-              </ListItemIcon>
-              <ListItemText primary="Port List" />
-            </ListItemButton>
-          </ListItem>
-          
-          <ListItem disablePadding>
-            <ListItemButton
-              component={Link}
-              to="/deviceList"
-              sx={{
-                '&:hover': { backgroundColor: 'darkred' },
-              }}
-            >
-              <ListItemIcon sx={{ color: '#fff' }}>
-                <StorageIcon />
-              </ListItemIcon>
-              <ListItemText primary="Device List" />
-            </ListItemButton>
-          </ListItem>
+      </Box>
+
+      <Divider sx={{ backgroundColor: "#222", mx: 2 }} />
+
+      {/* Navigation Links */}
+      <Box sx={{ mt: 2, flexGrow: 1 }}>
+        <List sx={{ px: 1.5 }}>
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+                <ListItemButton
+                  component={Link}
+                  to={item.path}
+                  sx={{
+                    borderRadius: "8px",
+                    transition: "all 0.3s ease",
+                    backgroundColor: isActive ? "rgba(139, 0, 0, 0.15)" : "transparent",
+                    borderLeft: isActive ? "4px solid #8b0000" : "4px solid transparent",
+                    "&:hover": {
+                      backgroundColor: "darkred",
+                      transform: "translateX(5px)", // Subtle slide animation
+                      "& .MuiListItemIcon-root": { color: "#fff" },
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      color: isActive ? "#8b0000" : "#777",
+                      minWidth: "40px",
+                      transition: "color 0.3s ease",
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontSize: "0.95rem",
+                      fontWeight: isActive ? 600 : 400,
+                      color: isActive ? "#fff" : "#bbb",
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
         </List>
       </Box>
-      
-      {/* Copyright at the bottom */}
-      <Typography variant="body2" sx={{ textAlign: 'center', marginTop: 'auto' }}>
-        ©Made By Md Abdul Aziz
-      </Typography>
+
+      {/* Footer / Copyright */}
+      <Box sx={{ p: 3, backgroundColor: "#000" }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            textAlign: "center",
+            color: "#555",
+            fontSize: "0.7rem",
+            letterSpacing: "0.5px",
+          }}
+        >
+          © 2026 | Designed By
+          <Typography
+            variant="caption"
+            sx={{ display: "block", color: "#8b0000", fontWeight: "bold" }}
+          >
+            Md Abdul Aziz
+          </Typography>
+        </Typography>
+      </Box>
     </Box>
   );
 };

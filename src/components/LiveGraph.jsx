@@ -20,10 +20,10 @@ ChartJS.register(
   CategoryScale,
   Legend,
   Tooltip,
-  Filler
+  Filler,
 );
 
-const socket = io("http://localhost:5000");
+const socket = io("http://localhost:5000/");
 const STORAGE_KEY = "selectedInterfaces";
 
 /* ================= SPEED FORMATTER ================= */
@@ -52,7 +52,7 @@ export default function LiveGraph() {
   const [search, setSearch] = useState("");
   const [show, setShow] = useState(false);
   const [selected, setSelected] = useState(
-    JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
+    JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"),
   );
 
   /* ================= ALARM STATE ================= */
@@ -65,6 +65,14 @@ export default function LiveGraph() {
       setInterfaces(res.data.interfaces);
       console.log(res.data);
     });
+
+    // Polling every 1 second to fetch interface data
+    const interval = setInterval(() => {
+      console.log("Polling for interfaces..."); // Debug log for polling
+      axios.get("http://localhost:5000/api/devices").then((res) => {
+        setInterfaces([...res.data.interfaces]); // Update interfaces every 1 second
+      });
+    }, 1000); // 1 second interval
 
     socket.on("traffic", (data) => {
       setTraffic(data);
@@ -88,7 +96,7 @@ export default function LiveGraph() {
               silentSeconds.current[key] =
                 (silentSeconds.current[key] || 0) + 1;
 
-              /* After 10 seconds → alarm ON */
+              /* After 10 seconds â†’ alarm ON */
               if (silentSeconds.current[key] === 10) {
                 // speak("Interface traffic failed");
                 alarmActive.current[key] = true;
@@ -117,7 +125,10 @@ export default function LiveGraph() {
       });
     });
 
-    return () => socket.off("traffic");
+    return () => {
+      clearInterval(interval); // Cleanup polling
+      socket.off("traffic");
+    };
   }, []);
 
   /* ================= ACTIONS ================= */
@@ -142,24 +153,33 @@ export default function LiveGraph() {
         minHeight: "100vh",
       }}
     >
-      <h1 style={{ textAlign: "center", marginBottom: 20, color: "#333" }}>
-        Network Interface Traffic Monitor
-      </h1>
-      <input
-        placeholder="Search device / interface"
-        value={search}
-        onFocus={() => setShow(true)}
-        onChange={(e) => setSearch(e.target.value)}
+      {/* Header with title and search in top left */}
+      <div
         style={{
-          width: "100%",
-          padding: 12,
-          border: "1px solid #ccc",
-          borderRadius: 8,
-          fontSize: 16,
-          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 20,
         }}
-      />
+      >
+        <input
+          placeholder="Search device / interface"
+          value={search}
+          onFocus={() => setShow(true)}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "300px",
+            padding: 12,
+            border: "1px solid #ccc",
+            borderRadius: 8,
+            fontSize: 16,
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          }}
+        />
+        <h1 style={{ margin: 0, color: "#333" }}>
+          Network Interface Traffic Monitor
+        </h1>
+      </div>
 
       {show && (
         <div
@@ -191,7 +211,31 @@ export default function LiveGraph() {
             }}
             onClick={(e) => e.stopPropagation()} // Prevent closing on content click
           >
-            {/* Cross icon to close */}
+            {/* Add Selected Interfaces button in top left corner */}
+            <button
+              onClick={save}
+              style={{
+                position: "absolute",
+                top: "10px",
+                left: "10px",
+                padding: "12px 20px",
+                backgroundColor: "#2196F3",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 16,
+                fontWeight: "bold",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                transition: "background-color 0.2s",
+              }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = "#1976D2")}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = "#2196F3")}
+            >
+              Add Selected Interfaces
+            </button>
+
+            {/* Cross icon to close in top right */}
             <button
               onClick={() => setShow(false)}
               style={{
@@ -205,10 +249,10 @@ export default function LiveGraph() {
                 color: "#666",
               }}
             >
-              ✕
+              âœ•
             </button>
 
-            <h2 style={{ marginBottom: 20, color: "#333" }}>
+            <h2 style={{ marginBottom: 20, color: "#333", marginTop: 50 }}>
               Select Interfaces
             </h2>
 
@@ -227,34 +271,30 @@ export default function LiveGraph() {
               }}
             />
 
-            <button
-              onClick={save}
-              style={{
-                width: "100%",
-                padding: "12px",
-                backgroundColor: "#2196F3",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 16,
-                fontWeight: "bold",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                transition: "background-color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = "#1976D2")}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = "#2196F3")}
-            >
-              Add Selected Interfaces
-            </button>
-
             <div style={{ marginBottom: 20 }}>
               {interfaces
-                .filter((i) =>
-                  `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
-                    .toLowerCase()
-                    .includes(search.toLowerCase())
-                )
+                .filter((i) => {
+                  // Filter by search
+                  const matchesSearch =
+                    `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
+                      .toLowerCase()
+                      .includes(search.toLowerCase());
+
+                  // Filter for UP status
+                  const isUp = i.ifOperStatus === 1;
+
+                  // If traffic data is available, also filter for interfaces with traffic (rx > 0 or tx > 0)
+                  // Otherwise, show all matching search and UP
+                  const hasTraffic =
+                    Object.keys(traffic).length > 0
+                      ? traffic[i.device_id] &&
+                        traffic[i.device_id][i.ifIndex] &&
+                        (traffic[i.device_id][i.ifIndex].rx > 0 ||
+                          traffic[i.device_id][i.ifIndex].tx > 0)
+                      : true;
+
+                  return matchesSearch && isUp && hasTraffic;
+                })
                 .map((i) => {
                   const key = `${i.device_id}_${i.ifIndex}`;
                   return (
@@ -293,7 +333,7 @@ export default function LiveGraph() {
                             transform: "scale(1.2)",
                           }}
                         />
-                        <div style={{ display: "flex", alignItems: "rounded" }}>
+                        <div style={{ display: "flex", alignItems: "center" }}>
                           <div
                             style={{
                               fontWeight: "bold",
@@ -353,7 +393,7 @@ export default function LiveGraph() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
           gap: 20,
           marginTop: 20,
         }}
@@ -361,7 +401,7 @@ export default function LiveGraph() {
         {selected.map((key) => {
           const [devId, ifIndex] = key.split("_");
           const iface = interfaces.find(
-            (x) => x.device_id == devId && x.ifIndex == ifIndex
+            (x) => x.device_id == devId && x.ifIndex == ifIndex,
           );
 
           const h = history[key] || { rx: [], tx: [] };
@@ -377,6 +417,8 @@ export default function LiveGraph() {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 border: "1px solid #e0e0e0",
                 position: "relative",
+                width: "350px",
+                height: "280px",
               }}
             >
               <button
@@ -392,7 +434,7 @@ export default function LiveGraph() {
                   color: "#666",
                 }}
               >
-                ✕
+                âœ•
               </button>
 
               <div style={{ marginBottom: 10 }}>
@@ -417,7 +459,7 @@ export default function LiveGraph() {
                       marginLeft: 10,
                     }}
                   >
-                    -  {iface?.ifAlias}
+                    - {iface?.ifAlias}
                   </p>
                 </div>
                 <p style={{ margin: 5, color: "#888", fontSize: 12 }}>
@@ -444,7 +486,9 @@ export default function LiveGraph() {
                 TX: {formatBps(cur.tx)} | RX: {formatBps(cur.rx)}
               </div>
 
-              <div style={{ height: 300 }}>
+              <div style={{ height: 150 }}>
+                {" "}
+                {/* Adjusted height to fit within 280px card */}
                 <Line
                   data={{
                     labels: h.rx.map((_, i) => i + 1),
