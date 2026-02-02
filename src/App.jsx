@@ -8,6 +8,7 @@ import Navbar from "./components/Navbar";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { Outlet } from "react-router-dom";
+import BackboneList from "./components/BackboneList";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
+            <Route path="backbonelist" element={<BackboneList />} />
             <Route path="livegraph" element={<LiveGraph />} />
             <Route path="addDevice" element={<DeviceAdd />} />
             <Route path="deviceList" element={<DeviceList />} />

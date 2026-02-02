@@ -20,10 +20,10 @@ ChartJS.register(
   CategoryScale,
   Legend,
   Tooltip,
-  Filler,
+  Filler
 );
 
-const socket = io("http://localhost:5000/");
+const socket = io("http://172.17.0.50:5000/");
 const STORAGE_KEY = "selectedInterfaces";
 
 /* ================= SPEED FORMATTER ================= */
@@ -52,7 +52,7 @@ export default function LiveGraph() {
   const [search, setSearch] = useState("");
   const [show, setShow] = useState(false);
   const [selected, setSelected] = useState(
-    JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"),
+    JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
   );
 
   /* ================= ALARM STATE ================= */
@@ -61,16 +61,16 @@ export default function LiveGraph() {
 
   /* ================= LOAD ================= */
   useEffect(() => {
-    axios.get("http://localhost:5000/api/devices").then((res) => {
+    axios.get("http://172.17.0.50:5000/api/devices").then((res) => {
       setInterfaces(res.data.interfaces);
       console.log(res.data);
     });
 
     // Polling every 1 second to fetch interface data
     const interval = setInterval(() => {
-      console.log("Polling for interfaces..."); // Debug log for polling
-      axios.get("http://localhost:5000/api/devices").then((res) => {
-        setInterfaces([...res.data.interfaces]); // Update interfaces every 1 second
+      console.log("Polling for interfaces...");  // Debug log for polling
+      axios.get("http://172.17.0.50:5000/api/devices").then((res) => {
+        setInterfaces([...res.data.interfaces]);  // Update interfaces every 1 second
       });
     }, 1000); // 1 second interval
 
@@ -96,7 +96,7 @@ export default function LiveGraph() {
               silentSeconds.current[key] =
                 (silentSeconds.current[key] || 0) + 1;
 
-              /* After 10 seconds â†’ alarm ON */
+              /* After 10 seconds → alarm ON */
               if (silentSeconds.current[key] === 10) {
                 // speak("Interface traffic failed");
                 alarmActive.current[key] = true;
@@ -126,7 +126,7 @@ export default function LiveGraph() {
     });
 
     return () => {
-      clearInterval(interval); // Cleanup polling
+      clearInterval(interval);  // Cleanup polling
       socket.off("traffic");
     };
   }, []);
@@ -154,14 +154,7 @@ export default function LiveGraph() {
       }}
     >
       {/* Header with title and search in top left */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <input
           placeholder="Search device / interface"
           value={search}
@@ -249,7 +242,7 @@ export default function LiveGraph() {
                 color: "#666",
               }}
             >
-              âœ•
+              ✕
             </button>
 
             <h2 style={{ marginBottom: 20, color: "#333", marginTop: 50 }}>
@@ -275,24 +268,19 @@ export default function LiveGraph() {
               {interfaces
                 .filter((i) => {
                   // Filter by search
-                  const matchesSearch =
-                    `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
-                      .toLowerCase()
-                      .includes(search.toLowerCase());
-
+                  const matchesSearch = `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
+                    .toLowerCase()
+                    .includes(search.toLowerCase());
+                  
                   // Filter for UP status
                   const isUp = i.ifOperStatus === 1;
-
+                  
                   // If traffic data is available, also filter for interfaces with traffic (rx > 0 or tx > 0)
                   // Otherwise, show all matching search and UP
-                  const hasTraffic =
-                    Object.keys(traffic).length > 0
-                      ? traffic[i.device_id] &&
-                        traffic[i.device_id][i.ifIndex] &&
-                        (traffic[i.device_id][i.ifIndex].rx > 0 ||
-                          traffic[i.device_id][i.ifIndex].tx > 0)
-                      : true;
-
+                  const hasTraffic = Object.keys(traffic).length > 0 
+                    ? (traffic[i.device_id] && traffic[i.device_id][i.ifIndex] && (traffic[i.device_id][i.ifIndex].rx > 0 || traffic[i.device_id][i.ifIndex].tx > 0))
+                    : true;
+                  
                   return matchesSearch && isUp && hasTraffic;
                 })
                 .map((i) => {
@@ -401,7 +389,7 @@ export default function LiveGraph() {
         {selected.map((key) => {
           const [devId, ifIndex] = key.split("_");
           const iface = interfaces.find(
-            (x) => x.device_id == devId && x.ifIndex == ifIndex,
+            (x) => x.device_id == devId && x.ifIndex == ifIndex
           );
 
           const h = history[key] || { rx: [], tx: [] };
@@ -434,7 +422,7 @@ export default function LiveGraph() {
                   color: "#666",
                 }}
               >
-                âœ•
+                ✕
               </button>
 
               <div style={{ marginBottom: 10 }}>
@@ -459,7 +447,7 @@ export default function LiveGraph() {
                       marginLeft: 10,
                     }}
                   >
-                    - {iface?.ifAlias}
+                    -  {iface?.ifAlias}
                   </p>
                 </div>
                 <p style={{ margin: 5, color: "#888", fontSize: 12 }}>
@@ -486,9 +474,7 @@ export default function LiveGraph() {
                 TX: {formatBps(cur.tx)} | RX: {formatBps(cur.rx)}
               </div>
 
-              <div style={{ height: 150 }}>
-                {" "}
-                {/* Adjusted height to fit within 280px card */}
+              <div style={{ height: 150 }}> {/* Adjusted height to fit within 280px card */}
                 <Line
                   data={{
                     labels: h.rx.map((_, i) => i + 1),

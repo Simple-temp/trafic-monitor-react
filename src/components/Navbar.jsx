@@ -14,6 +14,8 @@ import ShowChartIcon from "@mui/icons-material/ShowChart";
 import RouterIcon from "@mui/icons-material/Router";
 import StorageIcon from "@mui/icons-material/Storage";
 import HomeIcon from "@mui/icons-material/Home";
+import DnsIcon from '@mui/icons-material/Dns';
+import LOGO from "../assets/logo.png";
 
 const Navbar = () => {
   const location = useLocation();
@@ -21,6 +23,7 @@ const Navbar = () => {
   const menuItems = [
     { text: "Home", icon: <HomeIcon />, path: "/" },
     //{ text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
+    //{ text: "Backbone List", icon: <DnsIcon />, path: "/backbonelist" },
     { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
   ];
@@ -45,23 +48,8 @@ const Navbar = () => {
       {/* Branding Section */}
       <Box sx={{ p: 4, textAlign: "center" }}>
         {/* Placeholder for actual Logo image */}
-        <Box
-          component="div"
-          sx={{
-            width: 50,
-            height: 50,
-            backgroundColor: "#8b0000",
-            borderRadius: "12px",
-            margin: "0 auto 12px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.5rem",
-            fontWeight: "bold",
-            boxShadow: "0 0 15px rgba(139, 0, 0, 0.4)",
-          }}
-        >
-          N
+        <Box>
+          <img src={LOGO} style={{ width: "155px", height:"100px" }}/>
         </Box>
         <Typography
           variant="h6"
@@ -137,7 +125,7 @@ const Navbar = () => {
             letterSpacing: "0.5px",
           }}
         >
-          © 2026 | Designed By
+          &copy; 2026 | Designed By
           <Typography
             variant="caption"
             sx={{ display: "block", color: "#8b0000", fontWeight: "bold" }}
