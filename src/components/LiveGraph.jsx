@@ -20,10 +20,10 @@ ChartJS.register(
   CategoryScale,
   Legend,
   Tooltip,
-  Filler
+  Filler,
 );
 
-const socket = io("http://172.17.0.50:5000/");
+const socket = io("http://localhost:5000");
 const STORAGE_KEY = "selectedInterfaces";
 
 /* ================= SPEED FORMATTER ================= */
@@ -32,6 +32,15 @@ function formatBps(bps = 0) {
   if (bps < 1_000_000) return `${(bps / 1_000).toFixed(2)} Kbps`;
   if (bps < 1_000_000_000) return `${(bps / 1_000_000).toFixed(2)} Mbps`;
   return `${(bps / 1_000_000_000).toFixed(2)} Gbps`;
+}
+
+/* ================= OCTET FORMATTER ================= */
+function formatOctets(octets = 0) {
+  if (octets < 1_000) return `${octets.toFixed(0)} B`;
+  if (octets < 1_000_000) return `${(octets / 1_000).toFixed(2)} KB`;
+  if (octets < 1_000_000_000) return `${(octets / 1_000_000).toFixed(2)} MB`;
+  if (octets < 1_000_000_000_000) return `${(octets / 1_000_000_000).toFixed(2)} GB`;
+  return `${(octets / 1_000_000_000_000).toFixed(2)} TB`;
 }
 
 /* ================= SPEAK ================= */
@@ -50,10 +59,12 @@ export default function LiveGraph() {
   const [traffic, setTraffic] = useState({});
   const [history, setHistory] = useState({});
   const [search, setSearch] = useState("");
-  const [show, setShow] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [selected, setSelected] = useState(
-    JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
+    JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"),
   );
+
+  const searchRef = useRef(null);
 
   /* ================= ALARM STATE ================= */
   const silentSeconds = useRef({});
@@ -61,18 +72,19 @@ export default function LiveGraph() {
 
   /* ================= LOAD ================= */
   useEffect(() => {
-    axios.get("http://172.17.0.50:5000/api/devices").then((res) => {
+    // Initial fetch
+    axios.get("http://localhost:5000/api/devices").then((res) => {
       setInterfaces(res.data.interfaces);
-      console.log(res.data);
     });
 
-    // Polling every 1 second to fetch interface data
+    // Polling every 1 second for interface data (including octets)
     const interval = setInterval(() => {
-      console.log("Polling for interfaces...");  // Debug log for polling
-      axios.get("http://172.17.0.50:5000/api/devices").then((res) => {
-        setInterfaces([...res.data.interfaces]);  // Update interfaces every 1 second
+      axios.get("http://localhost:5000/api/devices").then((res) => {
+        setInterfaces(res.data.interfaces);
+        // Update localStorage for selected interfaces (persist every second)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
       });
-    }, 1000); // 1 second interval
+    }, 1000);
 
     socket.on("traffic", (data) => {
       setTraffic(data);
@@ -126,15 +138,33 @@ export default function LiveGraph() {
     });
 
     return () => {
-      clearInterval(interval);  // Cleanup polling
+      clearInterval(interval);
       socket.off("traffic");
+    };
+  }, [selected]); // Add selected to dependency to update localStorage
+
+  /* ================= OUTSIDE CLICK HANDLER ================= */
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
   /* ================= ACTIONS ================= */
-  const save = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
-    setShow(false); // Close popup after adding
+  const addInterface = (key) => {
+    if (!selected.includes(key)) {
+      const updated = [...selected, key];
+      setSelected(updated);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    }
+    setSearch("");
+    setShowDropdown(false);
   };
 
   const remove = (key) => {
@@ -142,6 +172,16 @@ export default function LiveGraph() {
     setSelected(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
+
+  /* ================= FILTERED INTERFACES ================= */
+  const filteredInterfaces = interfaces.filter((i) => {
+    const matchesSearch =
+      `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+    const isUp = i.ifOperStatus === 1;
+    return matchesSearch && isUp;
+  });
 
   /* ================= UI ================= */
   return (
@@ -153,235 +193,104 @@ export default function LiveGraph() {
         minHeight: "100vh",
       }}
     >
-      {/* Header with title and search in top left */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      {/* Professional Search Bar - Full Width with Typeahead */}
+      <div style={{ marginBottom: 20, position: "relative" }} ref={searchRef}>
         <input
           placeholder="Search device / interface"
           value={search}
-          onFocus={() => setShow(true)}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setShowDropdown(e.target.value.length > 0);
+          }}
+          onFocus={() => setShowDropdown(search.length > 0)}
           style={{
-            width: "300px",
-            padding: 12,
+            width: "100%",
+            padding: 15,
             border: "1px solid #ccc",
             borderRadius: 8,
-            fontSize: 16,
+            fontSize: 18,
             boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            outline: "none",
           }}
         />
-        <h1 style={{ margin: 0, color: "#333" }}>
-          Network Interface Traffic Monitor
-        </h1>
-      </div>
-
-      {show && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShow(false)} // Close on backdrop click
-        >
+        {/* Typeahead Dropdown */}
+        {showDropdown && (
           <div
             style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
               background: "#fff",
               border: "1px solid #ccc",
-              padding: "20px",
-              width: "1200px",
-              height: "600px",
-              overflowY: "auto",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-              position: "relative",
               borderRadius: 8,
+              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+              maxHeight: 300,
+              overflowY: "auto",
+              zIndex: 1000,
             }}
-            onClick={(e) => e.stopPropagation()} // Prevent closing on content click
           >
-            {/* Add Selected Interfaces button in top left corner */}
-            <button
-              onClick={save}
-              style={{
-                position: "absolute",
-                top: "10px",
-                left: "10px",
-                padding: "12px 20px",
-                backgroundColor: "#2196F3",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 16,
-                fontWeight: "bold",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                transition: "background-color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = "#1976D2")}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = "#2196F3")}
-            >
-              Add Selected Interfaces
-            </button>
-
-            {/* Cross icon to close in top right */}
-            <button
-              onClick={() => setShow(false)}
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                background: "none",
-                border: "none",
-                fontSize: "18px",
-                cursor: "pointer",
-                color: "#666",
-              }}
-            >
-              ✕
-            </button>
-
-            <h2 style={{ marginBottom: 20, color: "#333", marginTop: 50 }}>
-              Select Interfaces
-            </h2>
-
-            {/* Search bar inside popup */}
-            <input
-              placeholder="Search device / interface"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px",
-                marginBottom: "20px",
-                border: "1px solid #ccc",
-                borderRadius: 4,
-                fontSize: 14,
-              }}
-            />
-
-            <div style={{ marginBottom: 20 }}>
-              {interfaces
-                .filter((i) => {
-                  // Filter by search
-                  const matchesSearch = `${i.device_name} ${i.ifName} ${i.ifDescr} ${i.ifAlias}`
-                    .toLowerCase()
-                    .includes(search.toLowerCase());
-                  
-                  // Filter for UP status
-                  const isUp = i.ifOperStatus === 1;
-                  
-                  // If traffic data is available, also filter for interfaces with traffic (rx > 0 or tx > 0)
-                  // Otherwise, show all matching search and UP
-                  const hasTraffic = Object.keys(traffic).length > 0 
-                    ? (traffic[i.device_id] && traffic[i.device_id][i.ifIndex] && (traffic[i.device_id][i.ifIndex].rx > 0 || traffic[i.device_id][i.ifIndex].tx > 0))
-                    : true;
-                  
-                  return matchesSearch && isUp && hasTraffic;
-                })
-                .map((i) => {
-                  const key = `${i.device_id}_${i.ifIndex}`;
-                  return (
-                    <div
-                      key={key}
+            {filteredInterfaces.length > 0 ? (
+              filteredInterfaces.map((i) => {
+                const key = `${i.device_id}_${i.ifIndex}`;
+                return (
+                  <div
+                    key={key}
+                    style={{
+                      padding: 15,
+                      borderBottom: "1px solid #eee",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>
+                      <strong>{i.device_name}</strong> : {i.ifDescr} - {i.ifAlias}
+                      <span
+                        style={{
+                          marginLeft: 10,
+                          color: i.ifOperStatus === 1 ? "#4CAF50" : "#F44336",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ({i.ifOperStatus === 1 ? "UP" : "DOWN"})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => addInterface(key)}
                       style={{
-                        marginBottom: "10px",
-                        padding: "15px",
-                        border: "1px solid #eee",
-                        borderRadius: 8,
+                        padding: "8px 16px",
+                        backgroundColor: "#2196F3",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 4,
                         cursor: "pointer",
-                        transition: "background-color 0.2s, box-shadow 0.2s",
-                        backgroundColor: "#fafafa",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#ffffff";
-                        e.currentTarget.style.boxShadow =
-                          "0 2px 8px rgba(0,0,0,0.1)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#fafafa";
-                        e.currentTarget.style.boxShadow = "none";
                       }}
                     >
-                      <label style={{ display: "flex", alignItems: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(key)}
-                          onChange={(e) =>
-                            e.target.checked
-                              ? setSelected([...selected, key])
-                              : setSelected(selected.filter((x) => x !== key))
-                          }
-                          style={{
-                            marginRight: "15px",
-                            transform: "scale(1.2)",
-                          }}
-                        />
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          <div
-                            style={{
-                              fontWeight: "bold",
-                              fontSize: 16,
-                              color: "#333",
-                            }}
-                          >
-                            {i.device_name} :{" "}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "14px",
-                              color: "#666",
-                              marginLeft: 10,
-                            }}
-                          >
-                            {" "}
-                            {i.ifDescr}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "14px",
-                              color: "#666",
-                              marginLeft: 10,
-                            }}
-                          >
-                            {i.ifAlias}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#888",
-                              marginLeft: 10,
-                            }}
-                          >
-                            Status:{" "}
-                            <span
-                              style={{
-                                color:
-                                  i.ifOperStatus === 1 ? "#4CAF50" : "#F44336",
-                                fontWeight: "900",
-                              }}
-                            >
-                              {i.ifOperStatus === 1 ? "UP" : "DOWN"}
-                            </span>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  );
-                })}
-            </div>
+                      Add
+                    </button>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ padding: 15, textAlign: "center", color: "#666" }}>
+                No interfaces found
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
+      {/* Title */}
+      <h1 style={{ margin: 0, color: "#333", textAlign: "center" }}>
+        Network Interface Traffic Monitor
+      </h1>
+
+      {/* Graph Grid */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
           gap: 20,
           marginTop: 20,
         }}
@@ -389,11 +298,16 @@ export default function LiveGraph() {
         {selected.map((key) => {
           const [devId, ifIndex] = key.split("_");
           const iface = interfaces.find(
-            (x) => x.device_id == devId && x.ifIndex == ifIndex
+            (x) => x.device_id == devId && x.ifIndex == ifIndex,
           );
 
           const h = history[key] || { rx: [], tx: [] };
           const cur = traffic?.[devId]?.[ifIndex] || { rx: 0, tx: 0 };
+
+          // Ensure at least one data point for lines to show
+          const rxData = h.rx.length > 0 ? h.rx : [0];
+          const txData = h.tx.length > 0 ? h.tx : [0];
+          const labels = rxData.map((_, i) => i + 1);
 
           return (
             <div
@@ -405,7 +319,7 @@ export default function LiveGraph() {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 border: "1px solid #e0e0e0",
                 position: "relative",
-                width: "350px",
+                width: "380px",
                 height: "280px",
               }}
             >
@@ -429,74 +343,37 @@ export default function LiveGraph() {
                 <h3 style={{ margin: 0, color: "#333", fontSize: 18 }}>
                   {iface?.device_name}
                 </h3>
-                <div style={{ display: "flex" }}>
-                  <p
-                    style={{
-                      margin: 5,
-                      color: "#666",
-                      fontSize: 14,
-                    }}
-                  >
-                    {iface?.ifDescr}
-                  </p>
-                  <p
-                    style={{
-                      margin: 5,
-                      color: "#666",
-                      fontSize: 14,
-                      marginLeft: 10,
-                    }}
-                  >
-                    -  {iface?.ifAlias}
-                  </p>
-                </div>
+                <p style={{ margin: 5, color: "#666", fontSize: 14 }}>
+                  {iface?.ifDescr} - {iface?.ifAlias}
+                </p>
                 <p style={{ margin: 5, color: "#888", fontSize: 12 }}>
-                  Port Status:{" "}
-                  <span
-                    style={{
-                      color: iface?.ifOperStatus === 1 ? "#4CAF50" : "#F44336",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {iface?.ifOperStatus === 1 ? "UP" : "DOWN"}
-                  </span>
+                  RX: {formatOctets(iface?.ifInOctets || 0)} | TX: {formatOctets(iface?.ifOutOctets || 0)}
                 </p>
               </div>
 
-              <div
-                style={{
-                  margin: "10px 0",
-                  fontWeight: "bold",
-                  fontSize: 14,
-                  color: "#333",
-                }}
-              >
-                TX: {formatBps(cur.tx)} | RX: {formatBps(cur.rx)}
-              </div>
-
-              <div style={{ height: 150 }}> {/* Adjusted height to fit within 280px card */}
+              <div style={{ height: 150 }}>
                 <Line
                   data={{
-                    labels: h.rx.map((_, i) => i + 1),
+                    labels,
                     datasets: [
                       {
                         label: "RX (Mbps)",
-                        data: h.rx,
+                        data: rxData,
                         tension: 0.4,
                         pointRadius: 0,
                         fill: true,
-                        backgroundColor: "rgba(76,175,80,0.2)", // Professional green
-                        borderColor: "#4CAF50",
+                        backgroundColor: "rgba(33,150,243,0.2)", // Blue for RX
+                        borderColor: "#2196F3",
                         borderWidth: 2,
                       },
                       {
                         label: "TX (Mbps)",
-                        data: h.tx,
+                        data: txData,
                         tension: 0.4,
                         pointRadius: 0,
-                        fill: true,
-                        backgroundColor: "rgba(33,150,243,0.2)", // Professional blue
-                        borderColor: "#2196F3",
+                        fill: '+1',
+                        backgroundColor: "rgba(255,0,255,0.2)", // Magenta for TX
+                        borderColor: "#FF00FF",
                         borderWidth: 2,
                       },
                     ],

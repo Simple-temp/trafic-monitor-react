@@ -14,11 +14,12 @@ import downSoundFile from "../assets/inactive.wav";
 import upSoundFile from "../assets/active.wav";
 
 const API_URL = "http://localhost:5000/api/devices"; 
-const POLL_INTERVAL = 1000;
+const POLL_INTERVAL = 2000; // Polling every 2 seconds
+const DOWN_THRESHOLD_MS = 20000; // 10 seconds timeout
 
 const DeviceList = () => {
   const [devices, setDevices] = useState([]);
-  const [logs, setLogs] = useState([]); // State for status logs
+  const [logs, setLogs] = useState([]); 
   const [globalSearch, setGlobalSearch] = useState("");
   const [filterZone, setFilterZone] = useState(""); 
   const [tabValue, setTabValue] = useState(0); 
@@ -44,33 +45,41 @@ const DeviceList = () => {
     try {
       const res = await axios.get(API_URL);
       const list = res.data.devices || [];
+      const now = Date.now();
       
       const newLogs = [];
 
-      list.forEach((device) => {
+      // Logic to determine if device is UP or DOWN based on 10s timeout
+      const processedDevices = list.map(device => {
+        // Assume backend provides 'last_check_time'. If not, we use the current fetch time.
+        // If the device status is 'UP' but the last update was > 10s ago, force it to 'DOWN'
+        const lastUpdate = new Date(device.updated_at).getTime(); 
+        const isTimedOut = (now - lastUpdate) > DOWN_THRESHOLD_MS;
+        
+        const effectiveStatus = isTimedOut ? "DOWN" : device.status;
+
         const key = device.id;
-        const currentStatus = device.status;
         const prevStatus = prevStatusRef.current[key];
 
-        if (initialLoadDone.current && prevStatus !== undefined && prevStatus !== currentStatus) {
-          // Add to log state
+        if (initialLoadDone.current && prevStatus !== undefined && prevStatus !== effectiveStatus) {
           newLogs.push({
             id: Date.now() + Math.random(),
             hostname: device.hostname,
             ip: device.ip_address,
             from: prevStatus,
-            to: currentStatus,
+            to: effectiveStatus,
             time: new Date()
           });
 
-          // Sound/Voice Logic
-          if (prevStatus === "UP" && currentStatus === "DOWN") {
+          if (prevStatus === "UP" && effectiveStatus === "DOWN") {
             playAudio(downAudio);
-          } else if (prevStatus === "DOWN" && currentStatus === "UP") {
+          } else if (prevStatus === "DOWN" && effectiveStatus === "UP") {
             playAudio(upAudio);
           }
         }
-        prevStatusRef.current[key] = currentStatus;
+        
+        prevStatusRef.current[key] = effectiveStatus;
+        return { ...device, status: effectiveStatus };
       });
 
       if (newLogs.length > 0) {
@@ -78,8 +87,10 @@ const DeviceList = () => {
       }
 
       if (!initialLoadDone.current) initialLoadDone.current = true;
-      setDevices(list);
-    } catch (err) { console.error("API error:", err); }
+      setDevices(processedDevices);
+    } catch (err) { 
+      console.error("API error:", err); 
+    }
   };
 
   const playAudio = (audioRef) => {
@@ -89,6 +100,7 @@ const DeviceList = () => {
     }
   };
 
+  // ... (handleSaveDevice and handleDelete remain same)
   const handleSaveDevice = async () => {
     try {
       if (editingId) {
@@ -110,7 +122,6 @@ const DeviceList = () => {
     }
   };
 
-  // Filter Logic
   const filteredDevices = devices.filter((d) => {
     const s = globalSearch.toLowerCase();
     const matchesSearch = d.hostname.toLowerCase().includes(s) || d.ip_address.includes(s);
@@ -119,7 +130,6 @@ const DeviceList = () => {
     return matchesSearch && matchesZone && matchesStatus;
   });
 
-  // Log Filter: Last 10 Minutes
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
   const recentLogs = logs.filter(log => log.time > tenMinutesAgo);
 
@@ -145,7 +155,6 @@ const DeviceList = () => {
         <Tab icon={<HistoryIcon sx={{fontSize: 18}} />} iconPosition="start" label={`LOGS (${recentLogs.length})`} />
       </Tabs>
 
-      {/* Tab Panels */}
       {tabValue < 2 ? (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
           {filteredDevices.map(d => (
@@ -178,7 +187,7 @@ const DeviceList = () => {
         </Box>
       )}
 
-      {/* DIALOG remains same */}
+      {/* Dialog and Audio remains same */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="xs">
         <DialogTitle>{editingId ? "Edit Device" : "Add New Device"}</DialogTitle>
         <DialogContent>
@@ -189,7 +198,6 @@ const DeviceList = () => {
                 <InputLabel>Zone</InputLabel>
                 <Select value={formData.options} label="Zone" onChange={e => setFormData({...formData, options: e.target.value})}>
                     <MenuItem value="DHK">DHK</MenuItem><MenuItem value="NHK">NHK</MenuItem><MenuItem value="CTG">CTG</MenuItem><MenuItem value="KOLKATA">KOLKATA</MenuItem><MenuItem value="BENAPOLE">BENAPOLE</MenuItem><MenuItem value="SINGAPUR">SINGAPORE</MenuItem>
-
                 </Select>
             </FormControl>
         </DialogContent>
@@ -205,29 +213,30 @@ const DeviceList = () => {
   );
 };
 
+// DeviceBlock component remains same as your original
 const DeviceBlock = ({ device, onEdit, onDelete }) => {
-  const isDown = device.status !== "UP";
-  return (
-    <Box sx={{
-      width: '290px', height: '80px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      p: 1.5, bgcolor: '#fff', borderRadius: 2, borderLeft: `6px solid ${isDown ? '#dc2626' : '#10b981'}`,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-    }}>
-      <Box sx={{ overflow: 'hidden', flex: 1 }}>
-        <Typography fontWeight="bold" variant="body2" noWrap color={isDown ? "#b91c1c" : "#1e293b"}>{device.hostname}</Typography>
-        <Typography variant="caption" color="textSecondary" display="block">{device.ip_address}</Typography>
-        <Typography variant="caption" sx={{fontWeight: 700, color: '#64748b'}}>{device.options}</Typography>
-      </Box>
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton size="small" onClick={onEdit} sx={{ p: 0.5 }}><EditIcon sx={{ fontSize: 16 }} /></IconButton>
-            <IconButton size="small" onClick={onDelete} sx={{ p: 0.5 }} color="error"><DeleteIcon sx={{ fontSize: 16 }} /></IconButton>
+    const isDown = device.status !== "UP";
+    return (
+      <Box sx={{
+        width: '290px', height: '80px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        p: 1.5, bgcolor: '#fff', borderRadius: 2, borderLeft: `6px solid ${isDown ? '#dc2626' : '#10b981'}`,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      }}>
+        <Box sx={{ overflow: 'hidden', flex: 1 }}>
+          <Typography fontWeight="bold" variant="body2" noWrap color={isDown ? "#b91c1c" : "#1e293b"}>{device.hostname}</Typography>
+          <Typography variant="caption" color="textSecondary" display="block">{device.ip_address}</Typography>
+          <Typography variant="caption" sx={{fontWeight: 700, color: '#64748b'}}>{device.options}</Typography>
         </Box>
-        <Typography fontWeight="900" variant="caption" color={isDown ? "error" : "success.main"}>{device.status}</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <IconButton size="small" onClick={onEdit} sx={{ p: 0.5 }}><EditIcon sx={{ fontSize: 16 }} /></IconButton>
+              <IconButton size="small" onClick={onDelete} sx={{ p: 0.5 }} color="error"><DeleteIcon sx={{ fontSize: 16 }} /></IconButton>
+          </Box>
+          <Typography fontWeight="900" variant="caption" color={isDown ? "error" : "success.main"}>{device.status}</Typography>
+        </Box>
       </Box>
-    </Box>
-  );
-};
+    );
+  };
 
 const styles = {
   container: { minHeight: "100vh", background: "#f1f5f9", padding: "20px" },

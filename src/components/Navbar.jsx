@@ -22,7 +22,7 @@ const Navbar = () => {
 
   const menuItems = [
     { text: "Home", icon: <HomeIcon />, path: "/" },
-    //{ text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
+    { text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
     //{ text: "Backbone List", icon: <DnsIcon />, path: "/backbonelist" },
     { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },

@@ -384,8 +384,6 @@ const noNeedToShowWhichAliasesStartWithThis = [
 
 function isSnmpError(iface) {
   return (
-    iface.ifType === 0 &&
-    iface.ifSpeed === 0 &&
     iface.ifAdminStatus === 0 &&
     iface.ifOperStatus === 0 &&
     iface.ifInErrors === 0 &&
@@ -419,31 +417,16 @@ export default function PortList() {
         .get("http://localhost:5000/api/devices")
         .then((res) => {
           const allowedPrefixes = [
-            "ae",
-            "et",
-            "lt",
-            "xe",
-            "10GE",
-            "20GE",
-            "30GE",
-            "40GE",
-            "25GE",
-            "100GE",
-            "Ethernet",
-            "GigaEthernet",
-            "TGigaEthernet",
+            "ae", "et", "lt", "xe", "10GE", "20GE", "30GE", "40GE", "25GE",
+            "100GE", "Ethernet", "GigaEthernet", "TGigaEthernet",
           ];
 
           const filteredData = res.data.interfaces.filter((iface) => {
             const descr = iface.ifDescr || "";
             const alias = iface.ifAlias || "";
-            const matchesPrefix = allowedPrefixes.some((p) =>
-              descr.startsWith(p),
-            );
+            const matchesPrefix = allowedPrefixes.some((p) => descr.startsWith(p));
             const hasAlias = alias.trim().length > 0;
-            const isExcluded = noNeedToShowWhichAliasesStartWithThis.some((p) =>
-              alias.startsWith(p),
-            );
+            const isExcluded = noNeedToShowWhichAliasesStartWithThis.some((p) => alias.startsWith(p));
 
             return matchesPrefix && hasAlias && !isExcluded;
           });
@@ -457,11 +440,7 @@ export default function PortList() {
 
             const previousStatus = lastStatus.current[key];
 
-            if (
-              initialLoadDone.current &&
-              previousStatus !== undefined &&
-              previousStatus !== currentStatus
-            ) {
+            if (initialLoadDone.current && previousStatus !== undefined && previousStatus !== currentStatus) {
               const displayAlias = iface.ifAlias || iface.ifDescr || key;
 
               newLogs.push({
@@ -473,12 +452,10 @@ export default function PortList() {
                 time: new Date(),
               });
 
-              if (currentStatus === "DOWN" || currentStatus === "SNMP ERROR") {
-                if (currentStatus === "DOWN") {
-                  playAudio(downAudio);
-                  toast.error(`PORT DOWN: ${displayAlias}`);
-                }
-              } else if (currentStatus === "UP") {
+              if (currentStatus === "DOWN") {
+                playAudio(downAudio);
+                toast.error(`PORT DOWN: ${displayAlias}`);
+              } else if (currentStatus === "UP" && previousStatus === "DOWN") {
                 playAudio(upAudio);
                 toast.success(`PORT UP: ${displayAlias}`);
               }
@@ -494,7 +471,7 @@ export default function PortList() {
     };
 
     const interval = setInterval(fetchData, 1000);
-    fetchData(); // Run once immediately
+    fetchData(); 
     return () => clearInterval(interval);
   }, []);
 
@@ -508,35 +485,22 @@ export default function PortList() {
   };
 
   // --- SPLIT TAB FILTERING ---
+  // DOWN LIST: Not UP, Not SNMP Error, matches search
   const downPorts = interfaces.filter(
     (i) => i.ifOperStatus !== 1 && !isSnmpError(i) && searchFilter(i),
   );
+  // SNMP ERRORS: Only those with zero counters, matches search
   const snmpPorts = interfaces.filter((i) => isSnmpError(i) && searchFilter(i));
+  
   const upPorts = interfaces.filter(
     (i) => i.ifOperStatus === 1 && !isSnmpError(i) && searchFilter(i),
   );
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: "20px",
-        backgroundColor: "#f8fafc",
-      }}
-    >
+    <div style={{ minHeight: "100vh", padding: "20px", backgroundColor: "#f8fafc" }}>
       <ToastContainer position="top-right" autoClose={3000} />
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-        }}
-      >
-        <Typography variant="h5" fontWeight="900" color="#1e293b">
-          PORT MONITOR
-        </Typography>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <Typography variant="h5" fontWeight="900" color="#1e293b">PORT MONITOR</Typography>
         <TextField
           placeholder="Search..."
           size="small"
@@ -544,70 +508,31 @@ export default function PortList() {
           onChange={(e) => setGlobalSearch(e.target.value)}
           sx={{ width: "400px", bgcolor: "#fff" }}
           InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
+            startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>),
           }}
         />
       </div>
 
-      <Tabs
-        value={tabValue}
-        onChange={(e, v) => setTabValue(v)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
-      >
-        <Tab
-          icon={<ReportProblemIcon sx={{ color: "#ef4444" }} />}
-          iconPosition="start"
-          label={`DOWN (${downPorts.length})`}
-        />
-        <Tab
-          icon={<WarningAmberIcon sx={{ color: "#f59e0b" }} />}
-          iconPosition="start"
-          label={`SNMP ERR (${snmpPorts.length})`}
-        />
-        <Tab
-          icon={<CheckCircleIcon sx={{ color: "#22c55e" }} />}
-          iconPosition="start"
-          label={`UP PORTS (${upPorts.length})`}
-        />
+      <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}>
+        <Tab icon={<ReportProblemIcon sx={{ color: "#ef4444" }} />} iconPosition="start" label={`DOWN (${downPorts.length})`} />
+        <Tab icon={<WarningAmberIcon sx={{ color: "#f59e0b" }} />} iconPosition="start" label={`SNMP ERR (${snmpPorts.length})`} />
+        <Tab icon={<CheckCircleIcon sx={{ color: "#22c55e" }} />} iconPosition="start" label={`UP PORTS (${upPorts.length})`} />
         <Tab icon={<HistoryIcon />} iconPosition="start" label="LOGS" />
       </Tabs>
 
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-        {tabValue === 0 &&
-          downPorts.map((i) => (
-            <PortBlock key={`${i.device_id}_${i.ifIndex}`} item={i} />
-          ))}
-        {tabValue === 1 &&
-          snmpPorts.map((i) => (
-            <PortBlock key={`${i.device_id}_${i.ifIndex}`} item={i} />
-          ))}
-        {tabValue === 2 &&
-          upPorts.map((i) => (
-            <PortBlock key={`${i.device_id}_${i.ifIndex}`} item={i} />
-          ))}
+        {tabValue === 0 && downPorts.map((i) => <PortBlock key={`${i.device_id}_${i.ifIndex}`} item={i} />)}
+        {tabValue === 1 && snmpPorts.map((i) => <PortBlock key={`${i.device_id}_${i.ifIndex}`} item={i} />)}
+        {tabValue === 2 && upPorts.map((i) => <PortBlock key={`${i.device_id}_${i.ifIndex}`} item={i} />)}
       </Box>
 
       {tabValue === 3 && (
         <Box sx={{ maxWidth: "900px" }}>
           {logs.slice(0, 50).map((log) => (
-            <Paper
-              key={log.id}
-              sx={{
-                p: 1.5,
-                mb: 1,
-                borderLeft: `5px solid ${log.to === "UP" ? "#22c55e" : log.to === "SNMP ERROR" ? "#f59e0b" : "#ef4444"}`,
-              }}
-            >
-              <Typography variant="body2" fontWeight="bold">
-                {log.device} � {log.alias}
-              </Typography>
+            <Paper key={log.id} sx={{ p: 1.5, mb: 1, borderLeft: `5px solid ${log.to === "UP" ? "#22c55e" : log.to === "SNMP ERROR" ? "#f59e0b" : "#ef4444"}` }}>
+              <Typography variant="body2" fontWeight="bold">{log.device} — {log.alias}</Typography>
               <Typography variant="caption" color="textSecondary">
-                Status: <b>{log.from}</b> ? <b>{log.to}</b> at{" "}
-                {log.time.toLocaleTimeString()}
+                Status: <b>{log.from}</b> → <b>{log.to}</b> at {log.time.toLocaleTimeString()}
               </Typography>
             </Paper>
           ))}
@@ -622,68 +547,21 @@ export default function PortList() {
 
 function PortBlock({ item }) {
   const error = isSnmpError(item);
-  const statusLabel = error
-    ? "SNMP ERROR"
-    : item.ifOperStatus === 1
-      ? "UP"
-      : "DOWN";
-  const themeColor = error
-    ? "#f59e0b"
-    : item.ifOperStatus === 1
-      ? "#22c55e"
-      : "#ef4444";
+  const statusLabel = error ? "SNMP ERROR" : item.ifOperStatus === 1 ? "UP" : "DOWN";
+  const themeColor = error ? "#f59e0b" : item.ifOperStatus === 1 ? "#22c55e" : "#ef4444";
 
   return (
-    <Box
-      sx={{
-        width: "300px",
-        p: 2,
-        bgcolor: "#fff",
-        borderRadius: 2,
-        borderLeft: `8px solid ${themeColor}`,
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 0.5,
-      }}
-    >
-      <Typography variant="caption" fontWeight="bold" color="textSecondary">
-        {item.device_name}
-      </Typography>
-      <Typography
-        variant="body1"
-        fontWeight="900"
-        noWrap
-        sx={{ color: "#0f172a" }}
-      >
-        {item.ifAlias}
-      </Typography>
-      <Box
-        sx={{
-          mt: 1,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Typography
-          variant="caption"
-          fontWeight="900"
-          sx={{ fontFamily: "monospace", color: "#A52A2A" }}
-        >
-          {item.ifDescr}
-        </Typography>
+    <Box sx={{
+      width: "300px", p: 2, bgcolor: "#fff", borderRadius: 2, borderLeft: `8px solid ${themeColor}`,
+      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)", display: "flex", flexDirection: "column", gap: 0.5,
+    }}>
+      <Typography variant="caption" fontWeight="bold" color="textSecondary">{item.device_name}</Typography>
+      <Typography variant="body1" fontWeight="900" noWrap sx={{ color: "#0f172a" }}>{item.ifAlias}</Typography>
+      <Box sx={{ mt: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Typography variant="caption" fontWeight="900" sx={{ fontFamily: "monospace", color: "#A52A2A" }}>{item.ifDescr}</Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          {error && (
-            <WarningAmberIcon sx={{ fontSize: 14, color: themeColor }} />
-          )}
-          <Typography
-            variant="caption"
-            fontWeight="bold"
-            sx={{ color: themeColor }}
-          >
-            {statusLabel}
-          </Typography>
+          {error && <WarningAmberIcon sx={{ fontSize: 14, color: themeColor }} />}
+          <Typography variant="caption" fontWeight="bold" sx={{ color: themeColor }}>{statusLabel}</Typography>
         </Box>
       </Box>
     </Box>
