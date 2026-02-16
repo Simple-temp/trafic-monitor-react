@@ -14,15 +14,20 @@ import ShowChartIcon from "@mui/icons-material/ShowChart";
 import RouterIcon from "@mui/icons-material/Router";
 import StorageIcon from "@mui/icons-material/Storage";
 import HomeIcon from "@mui/icons-material/Home";
-import DnsIcon from '@mui/icons-material/Dns';
-import LOGO from "../assets/logo.png";
+import DnsIcon from "@mui/icons-material/Dns";
+import LOGO from "../assets/logo.jpeg";
 
 const Navbar = () => {
   const location = useLocation();
 
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    window.location.reload();
+  };
+
   const menuItems = [
     { text: "Home", icon: <HomeIcon />, path: "/" },
-    { text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
+    //{ text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
     //{ text: "Backbone List", icon: <DnsIcon />, path: "/backbonelist" },
     { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
@@ -33,7 +38,7 @@ const Navbar = () => {
       sx={{
         width: "15%",
         minWidth: "220px", // Prevents sidebar from getting too narrow
-        backgroundColor: "#0a0a0a", // Deep professional black
+        backgroundColor: "#000", // Deep professional black
         color: "#fff",
         display: "flex",
         flexDirection: "column",
@@ -49,7 +54,7 @@ const Navbar = () => {
       <Box sx={{ p: 4, textAlign: "center" }}>
         {/* Placeholder for actual Logo image */}
         <Box>
-          <img src={LOGO} style={{ width: "155px", height:"100px" }}/>
+          <img src={LOGO} style={{ width: "155px", height: "105px" }} />
         </Box>
         <Typography
           variant="h6"
@@ -60,9 +65,7 @@ const Navbar = () => {
             fontSize: "1.1rem",
             color: "#fff",
           }}
-        >
-          NMS TOOL
-        </Typography>
+        ></Typography>
       </Box>
 
       <Divider sx={{ backgroundColor: "#222", mx: 2 }} />
@@ -80,8 +83,12 @@ const Navbar = () => {
                   sx={{
                     borderRadius: "8px",
                     transition: "all 0.3s ease",
-                    backgroundColor: isActive ? "rgba(139, 0, 0, 0.15)" : "transparent",
-                    borderLeft: isActive ? "4px solid #8b0000" : "4px solid transparent",
+                    backgroundColor: isActive
+                      ? "rgba(139, 0, 0, 0.15)"
+                      : "transparent",
+                    borderLeft: isActive
+                      ? "4px solid #8b0000"
+                      : "4px solid transparent",
                     "&:hover": {
                       backgroundColor: "darkred",
                       transform: "translateX(5px)", // Subtle slide animation
@@ -115,6 +122,9 @@ const Navbar = () => {
 
       {/* Footer / Copyright */}
       <Box sx={{ p: 3, backgroundColor: "#000" }}>
+        <button onClick={handleLogout} style={styles.logoutBtn}>
+          Logout
+        </button>
         <Typography
           variant="caption"
           sx={{
@@ -136,6 +146,20 @@ const Navbar = () => {
       </Box>
     </Box>
   );
+};
+
+const styles = {
+  logoutBtn: {
+    padding: "8px 16px",
+    background: "rgb(235, 45, 7)",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    display: "block",
+    margin: "auto",
+    marginBottom : "10px",
+  },
 };
 
 export default Navbar;
