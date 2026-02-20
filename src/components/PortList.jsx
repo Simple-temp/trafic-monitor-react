@@ -59,7 +59,28 @@ export default function PortList() {
     }).catch((err) => console.error('Error fetching not in use:', err));
   };
 
-  useEffect(() => {
+useEffect(() => {
+    // 1. FETCH HISTORY
+    const fetchHistory = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/port-logs");
+        const historicalLogs = res.data.map((row) => ({
+          id: row.id, 
+          device: row.device_name,
+          alias: row.if_alias,
+          from: row.status_from,
+          to: row.status_to,
+          time: new Date(row.created_at), 
+        }));
+        setLogs(historicalLogs);
+      } catch (err) {
+        console.error("Error fetching history:", err);
+      }
+    };
+
+    fetchHistory();
+
+    // 2. POLLING & DETECTION
     const fetchData = () => {
       axios
         .get("http://localhost:5000/api/devices")
@@ -69,21 +90,14 @@ export default function PortList() {
             "100GE", "Ethernet", "GigaEthernet", "TGigaEthernet",
           ];
 
-          // REGEX: Matches prefix + digits, REJECTS anything with a dot (.)
-          // Example: 'ae1' matches, 'ae1.5' fails
           const cleanInterfaceRegex = /^[a-zA-Z0-9]+$/;
 
           const filteredData = res.data.interfaces.filter((iface) => {
             const descr = iface.ifDescr || "";
             const alias = iface.ifAlias || "";
             
-            // 1. Check if it starts with an allowed prefix
             const matchesPrefix = allowedPrefixes.some((p) => descr.startsWith(p));
-            
-            // 2. Check if it contains a dot (Rejecting ae0.82731 etc)
-            // We only want 'clean' integers after the prefix
             const isCleanInterface = !descr.includes(".");
-
             const hasAlias = alias.trim().length > 0;
 
             return matchesPrefix && isCleanInterface && hasAlias;
@@ -101,14 +115,25 @@ export default function PortList() {
             if (initialLoadDone.current && previousStatus && previousStatus !== currentStatus) {
               const displayAlias = iface.ifAlias || iface.ifDescr || key;
 
-              newLogs.push({
+              const logEntry = {
                 id: Date.now() + Math.random(),
                 device: iface.device_name,
                 alias: displayAlias,
                 from: previousStatus,
                 to: currentStatus,
                 time: new Date(),
-              });
+              };
+
+              newLogs.push(logEntry);
+
+              // --- FIX IS HERE: MATCH BACKEND EXPECTED KEYS ---
+              axios.post("http://localhost:5000/api/port-logs", {
+                device: logEntry.device,       // Backend expects 'device'
+                alias: logEntry.alias,         // Backend expects 'alias'
+                from: logEntry.from,           // Backend expects 'from'
+                to: logEntry.to                // Backend expects 'to'
+              }).catch(err => console.error("Failed to save log", err));
+              // -------------------------------------------------
 
               if (currentStatus === "DOWN") {
                 playAudio(downAudio);
@@ -128,7 +153,7 @@ export default function PortList() {
         .catch((err) => console.error("Polling error:", err));
     };
 
-    fetchNotInUse();
+    fetchNotInUse(); 
     fetchData(); 
     const interval = setInterval(() => {
         fetchData();
@@ -136,6 +161,7 @@ export default function PortList() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
 
   const searchFilter = (i) => {
     const s = globalSearch.toLowerCase();

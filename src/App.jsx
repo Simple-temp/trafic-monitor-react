@@ -10,6 +10,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { Outlet } from "react-router-dom";
 import BackboneList from "./components/BackboneList";
 import { Button } from "@mui/material";
+import Log from "./components/Log";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
             <Route path="addDevice" element={<DeviceAdd />} />
             <Route path="deviceList" element={<DeviceList />} />
             <Route path="portlist" element={<PortList />} />
+            <Route path="log" element={<Log />} />
           </Route>
         </Route>
       </Routes>

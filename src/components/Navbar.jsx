@@ -16,6 +16,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import HomeIcon from "@mui/icons-material/Home";
 import DnsIcon from "@mui/icons-material/Dns";
 import LOGO from "../assets/logo.jpeg";
+import HistoryIcon from '@mui/icons-material/History';
 
 const Navbar = () => {
   const location = useLocation();
@@ -31,6 +32,7 @@ const Navbar = () => {
     //{ text: "Backbone List", icon: <DnsIcon />, path: "/backbonelist" },
     { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
+    { text: "Logs", icon: <HistoryIcon />, path: "/log" },
   ];
 
   return (
