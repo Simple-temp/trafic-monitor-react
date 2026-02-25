@@ -262,8 +262,8 @@ useEffect(() => {
         <Tab icon={<HistoryIcon />} iconPosition="start" label="LOGS" />
         <Tab label={`NOT IN USE (${notInUseFiltered.length})`} />
         <Tab label="BGP Alert" />
-        <Tab label="Fiber power" />
-        <Tab label="backbone" />
+        {/* <Tab label="Fiber power" />
+        <Tab label="backbone" /> */}
       </Tabs>
 
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>

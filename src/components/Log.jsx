@@ -24,10 +24,10 @@ const Log = () => {
         // Map DB columns to Frontend object structure
         const historicalLogs = res.data.map((row) => ({
           id: row.id,
-          device: row.device_name,
-          alias: row.if_alias,
-          from: row.status_from,
-          to: row.status_to,
+          device: row.device,
+          alias: row.alias,
+          from: row.from_status,
+          to: row.to_status,
           time: new Date(row.created_at),
         }));
 

@@ -14,7 +14,7 @@ import ShowChartIcon from "@mui/icons-material/ShowChart";
 import RouterIcon from "@mui/icons-material/Router";
 import StorageIcon from "@mui/icons-material/Storage";
 import HomeIcon from "@mui/icons-material/Home";
-import DnsIcon from "@mui/icons-material/Dns";
+import CampaignIcon from '@mui/icons-material/Campaign';
 import LOGO from "../assets/logo.jpeg";
 import HistoryIcon from '@mui/icons-material/History';
 
@@ -32,6 +32,7 @@ const Navbar = () => {
     //{ text: "Backbone List", icon: <DnsIcon />, path: "/backbonelist" },
     { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
+    { text: "BGP Alert", icon: <CampaignIcon />, path: "/bgpalert" },
     { text: "Logs", icon: <HistoryIcon />, path: "/log" },
   ];
 
