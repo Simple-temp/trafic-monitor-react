@@ -1,168 +1,159 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import {
-  Box,
-  Typography,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Divider,
+  Box, Typography, List, ListItem, ListItemButton,
+  ListItemIcon, ListItemText, Divider, IconButton,
+  Drawer, useMediaQuery, Tooltip
 } from "@mui/material";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
+import { keyframes } from "@mui/system";
+import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import HomeIcon from "@mui/icons-material/Home";
 import RouterIcon from "@mui/icons-material/Router";
 import StorageIcon from "@mui/icons-material/Storage";
-import HomeIcon from "@mui/icons-material/Home";
-import CampaignIcon from '@mui/icons-material/Campaign';
+import CampaignIcon from "@mui/icons-material/Campaign";
+import HistoryIcon from "@mui/icons-material/History";
 import LOGO from "../assets/logo.jpeg";
-import HistoryIcon from '@mui/icons-material/History';
 
-const Navbar = () => {
+// 1. Glowing Animation
+const glowAnimation = keyframes`
+  0% { filter: drop-shadow(0 0 2px #8b0000); }
+  50% { filter: drop-shadow(0 0 12px #ff3333); }
+  100% { filter: drop-shadow(0 0 2px #8b0000); }
+`;
+
+const Navbar = ({ isCollapsed, setIsCollapsed, width }) => {
   const location = useLocation();
-
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    window.location.reload();
-  };
+  const isMobile = useMediaQuery("(max-width:1000px)");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const menuItems = [
     { text: "Home", icon: <HomeIcon />, path: "/" },
-    //{ text: "Live Graph", icon: <ShowChartIcon />, path: "/livegraph" },
-    //{ text: "Backbone List", icon: <DnsIcon />, path: "/backbonelist" },
     { text: "Port List", icon: <RouterIcon />, path: "/portlist" },
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
     { text: "BGP Alert", icon: <CampaignIcon />, path: "/bgpalert" },
     { text: "Logs", icon: <HistoryIcon />, path: "/log" },
   ];
 
-  return (
-    <Box
-      sx={{
-        width: "15%",
-        minWidth: "220px", // Prevents sidebar from getting too narrow
-        backgroundColor: "#000", // Deep professional black
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        position: "fixed",
-        top: 0,
-        left: 0,
-        borderRight: "1px solid #222", // Subtle separation
-        zIndex: 1200,
-      }}
-    >
-      {/* Branding Section */}
-      <Box sx={{ p: 4, textAlign: "center" }}>
-        {/* Placeholder for actual Logo image */}
-        <Box>
-          <img src={LOGO} style={{ width: "155px", height: "105px" }} />
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    window.location.reload();
+  };
+
+  const NavContent = (
+    <Box sx={{ 
+      height: "100%", display: "flex", flexDirection: "column", 
+      backgroundColor: "#000", color: "#fff", overflow: "hidden" 
+    }}>
+      {/* Header with Glowing Logo */}
+      <Box sx={{ p: isCollapsed ? 1 : 3, textAlign: "center", position: "relative" }}>
+        <Box sx={{ animation: `${glowAnimation} 2.5s infinite` }}>
+          <img 
+            src={LOGO} 
+            alt="Logo" 
+            style={{ 
+              width: isCollapsed ? "40px" : "120px", 
+              transition: "width 0.3s ease" 
+            }} 
+          />
         </Box>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 700,
-            letterSpacing: "1px",
-            textTransform: "uppercase",
-            fontSize: "1.1rem",
-            color: "#fff",
-          }}
-        ></Typography>
+        
+        {!isMobile && (
+          <IconButton 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            sx={{ color: "#fff", mt: 1 }}
+          >
+            {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          </IconButton>
+        )}
       </Box>
 
-      <Divider sx={{ backgroundColor: "#222", mx: 2 }} />
+      <Divider sx={{ backgroundColor: "#333" }} />
 
-      {/* Navigation Links */}
-      <Box sx={{ mt: 2, flexGrow: 1 }}>
-        <List sx={{ px: 1.5 }}>
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+      {/* Links */}
+      <List sx={{ flexGrow: 1, px: 1 }}>
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Tooltip key={item.text} title={isCollapsed ? item.text : ""} placement="right">
+              <ListItem disablePadding sx={{ mb: 0.5 }}>
                 <ListItemButton
                   component={Link}
                   to={item.path}
                   sx={{
                     borderRadius: "8px",
-                    transition: "all 0.3s ease",
-                    backgroundColor: isActive
-                      ? "rgba(139, 0, 0, 0.15)"
-                      : "transparent",
-                    borderLeft: isActive
-                      ? "4px solid #8b0000"
-                      : "4px solid transparent",
-                    "&:hover": {
-                      backgroundColor: "darkred",
-                      transform: "translateX(5px)", // Subtle slide animation
-                      "& .MuiListItemIcon-root": { color: "#fff" },
-                    },
+                    justifyContent: isCollapsed ? "center" : "initial",
+                    backgroundColor: isActive ? "rgba(139, 0, 0, 0.2)" : "transparent",
+                    borderLeft: isActive ? "4px solid #8b0000" : "4px solid transparent",
+                    "&:hover": { backgroundColor: "darkred" }
                   }}
                 >
-                  <ListItemIcon
-                    sx={{
-                      color: isActive ? "#8b0000" : "#777",
-                      minWidth: "40px",
-                      transition: "color 0.3s ease",
-                    }}
-                  >
+                  <ListItemIcon sx={{ 
+                    color: isActive ? "#ff3333" : "#777", 
+                    minWidth: isCollapsed ? 0 : 40,
+                    justifyContent: "center"
+                  }}>
                     {item.icon}
                   </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontSize: "0.95rem",
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? "#fff" : "#bbb",
-                    }}
-                  />
+                  {!isCollapsed && <ListItemText primary={item.text} />}
                 </ListItemButton>
               </ListItem>
-            );
-          })}
-        </List>
-      </Box>
+            </Tooltip>
+          );
+        })}
+      </List>
 
-      {/* Footer / Copyright */}
-      <Box sx={{ p: 3, backgroundColor: "#000" }}>
-        <button onClick={handleLogout} style={styles.logoutBtn}>
-          Logout
+      {/* Footer */}
+      <Box sx={{ p: 2, textAlign: "center" }}>
+        <button onClick={handleLogout} style={navStyles.logoutBtn}>
+          {isCollapsed ? "?" : "Logout"}
         </button>
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            textAlign: "center",
-            color: "#555",
-            fontSize: "0.7rem",
-            letterSpacing: "0.5px",
-          }}
-        >
-          &copy; 2026 | Designed By
-          <Typography
-            variant="caption"
-            sx={{ display: "block", color: "#8b0000", fontWeight: "bold" }}
-          >
-            Md Abdul Aziz
+        {!isCollapsed && (
+          <Typography variant="caption" sx={{ color: "#444", display: "block", mt: 1 }}>
+            © 2026 | <b>Aziz</b>
           </Typography>
-        </Typography>
+        )}
       </Box>
     </Box>
   );
+
+  return (
+    <>
+      {isMobile ? (
+        <>
+          <Box sx={{ height: "60px", background: "#000", display: "flex", alignItems: "center", px: 2, position: "fixed", width: "100%", zIndex: 10 }}>
+            <IconButton onClick={() => setMobileOpen(true)} sx={{ color: "#fff" }}><MenuIcon /></IconButton>
+          </Box>
+          <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)}>
+            <Box sx={{ width: "250px", height: "100%" }}>{NavContent}</Box>
+          </Drawer>
+        </>
+      ) : (
+        <Box sx={{ 
+          width: width, 
+          position: "fixed", 
+          height: "100vh", 
+          transition: "width 0.3s ease-in-out", 
+          zIndex: 100 
+        }}>
+          {NavContent}
+        </Box>
+      )}
+    </>
+  );
 };
 
-const styles = {
+const navStyles = {
   logoutBtn: {
-    padding: "8px 16px",
-    background: "rgb(235, 45, 7)",
+    padding: "8px",
+    width: "100%",
+    backgroundColor: "#eb2d07",
     color: "white",
     border: "none",
     borderRadius: "4px",
-    cursor: "pointer",
-    display: "block",
-    margin: "auto",
-    marginBottom : "10px",
-  },
+    cursor: "pointer"
+  }
 };
 
 export default Navbar;

@@ -382,7 +382,7 @@ const HomePage = () => {
 
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`/api/pingtable/${deleteId}`, {
+      await fetch(`http://localhost:5000/api/pingtable/${deleteId}`, {
         method: "DELETE",
       });
       fetchData();
@@ -405,7 +405,7 @@ const HomePage = () => {
       <Button
         variant="contained"
         onClick={handleOpenAdd}
-        sx={{ bottom: 10, bgcolor: "rgb(141, 35, 15)", fontSize:10 }}
+        sx={{ bottom: 10, bgcolor: "rgb(141, 35, 15)", fontSize: 10 }}
       >
         Add Ping
       </Button>

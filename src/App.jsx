@@ -12,6 +12,11 @@ import BackboneList from "./components/BackboneList";
 import { Button } from "@mui/material";
 import Log from "./components/Log";
 import BgpAlert from "./components/BgpAlert";
+import SflowTraffic from "./components/SflowTraffic";
+import {
+  Box,
+} from "@mui/material";
+import React, { useState } from "react";
 
 function App() {
   return (
@@ -31,6 +36,7 @@ function App() {
             <Route path="portlist" element={<PortList />} />
             <Route path="log" element={<Log />} />
             <Route path="bgpalert" element={<BgpAlert />} />
+            <Route path="sflow" element={<SflowTraffic />} />
           </Route>
         </Route>
       </Routes>
@@ -38,11 +44,27 @@ function App() {
   );
 }
 
+// Inside App.js, update the Layout component and styles:
+
 const Layout = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Dynamic widths
+  const sidebarWidth = isCollapsed ? "5%" : "15%";
+  const contentWidth = isCollapsed ? "95%" : "85%";
+
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
-      <Navbar />
-      <div style={styles.mainContent}>
+    <div style={{ display: "flex", width: "100%", height: "100vh", overflow: "hidden" }}>
+      {/* Navbar receives state and toggle function */}
+      <Navbar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} width={sidebarWidth} />
+      
+      <div 
+        style={{ 
+          ...styles.mainContent, 
+          width: contentWidth,
+          marginLeft: sidebarWidth, // Pushes content exactly by sidebar width
+        }}
+      >
         <Outlet />
       </div>
     </div>
@@ -51,12 +73,11 @@ const Layout = () => {
 
 const styles = {
   mainContent: {
-    marginLeft: "15%",
-    width: "85%",
-    padding: "5px 5px 5px 5px",
+    padding: "10px",
     backgroundColor: "#f5f5f5",
     height: "100vh",
     overflowY: "auto",
+    transition: "all 0.3s ease-in-out", // Smooth transition when sidebar toggles
   },
 };
 
