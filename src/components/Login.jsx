@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 const USERS = [
   { id: 1, name: 'Admin1', pass: 'admin123', role: 'admin' },
   { id: 2, name: 'Standard User', pass: 'user123', role: 'user' },
-  { id: 2, name: 'coronet', pass: '#coronet#2026_!', role: 'admin' }
+  { id: 3, name: 'coronet', pass: '#coronet#2026_!', role: 'admin' },
+  { id: 4, name: 'noc', pass: 'noc', role: 'user' },
 ];
 
 const Login = () => {

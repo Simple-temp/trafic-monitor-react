@@ -15,6 +15,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import HistoryIcon from "@mui/icons-material/History";
 import LOGO from "../assets/logo.jpeg";
+import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 
 // 1. Glowing Animation
 const glowAnimation = keyframes`
@@ -34,6 +35,7 @@ const Navbar = ({ isCollapsed, setIsCollapsed, width }) => {
     { text: "Device List", icon: <StorageIcon />, path: "/devicelist" },
     { text: "BGP Alert", icon: <CampaignIcon />, path: "/bgpalert" },
     { text: "Logs", icon: <HistoryIcon />, path: "/log" },
+    // { text: "User", icon: <PersonAddAltIcon />, path: "/useradd" },
   ];
 
   const handleLogout = () => {
@@ -111,7 +113,7 @@ const Navbar = ({ isCollapsed, setIsCollapsed, width }) => {
         </button>
         {!isCollapsed && (
           <Typography variant="caption" sx={{ color: "#444", display: "block", mt: 1 }}>
-            © 2026 | <b>Aziz</b>
+            ï¿½ 2026 | <b>Aziz</b>
           </Typography>
         )}
       </Box>
